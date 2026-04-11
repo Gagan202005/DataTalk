@@ -20,8 +20,64 @@ export default function ChatMessage({ message, onSendMessage }) {
   if (isSystem) {
     return (
       <div className="flex justify-center mb-5 animate-fade-in-up">
-        <div className="glass-card px-5 py-3 max-w-[80%] text-center">
+        <div className="glass-card px-5 py-4 max-w-[85%] text-center space-y-3">
           <MarkdownContent content={message.content} />
+
+          {/* 1. Anomaly Detection Box — TOP */}
+          {message.anomalies && message.anomalies.length > 0 && (
+            <div className="mt-3 rounded-xl border border-[#f59e0b]/30 bg-[#f59e0b]/6 p-4 text-left">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-base">🚨</span>
+                <span className="text-[12px] font-bold text-[#f59e0b] uppercase tracking-wide">
+                  {message.anomalies.length} Anomaly Group{message.anomalies.length > 1 ? 's' : ''} Detected
+                </span>
+              </div>
+              <div className="space-y-2 mb-3">
+                {message.anomalies.map((a, i) => (
+                  <div key={i} className="flex items-center justify-between gap-3 bg-[#f59e0b]/8 rounded-lg px-3 py-2">
+                    <span className="text-[11px] text-[#fcd34d]">{a.message}</span>
+                    <span className="flex-shrink-0 text-[10px] font-bold text-[#f59e0b] bg-[#f59e0b]/15 px-2 py-0.5 rounded-full">
+                      {a.count} rows
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {message.anomalies.map((a, i) => (
+                  <button
+                    key={i}
+                    onClick={() => onSendMessage && onSendMessage(`Show me the suspicious values in the '${a.column}' column`)}
+                    className="px-3 py-1.5 rounded-full text-[11px] font-semibold bg-[#f59e0b]/15 text-[#f59e0b] border border-[#f59e0b]/30 hover:bg-[#f59e0b]/30 transition-all duration-200"
+                  >
+                    🔍 Investigate {a.column}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* 2. Starter Questions — MIDDLE, 2 per row, bigger */}
+          {message.starterQuestions && message.starterQuestions.length > 0 && (
+            <div className="mt-3 rounded-xl border border-[#8b5cf6]/25 bg-[#8b5cf6]/6 p-4 text-left">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-base">💡</span>
+                <span className="text-[12px] font-bold text-[#a78bfa] uppercase tracking-wide">
+                  Try asking these to get started
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                {message.starterQuestions.map((q, i) => (
+                  <button
+                    key={i}
+                    onClick={() => onSendMessage && onSendMessage(q)}
+                    className="text-left px-4 py-3 rounded-xl text-[12px] font-medium text-[#c4b5fd] bg-[#8b5cf6]/10 border border-[#8b5cf6]/25 hover:bg-[#8b5cf6]/25 hover:border-[#8b5cf6]/50 transition-all duration-200 leading-snug"
+                  >
+                    <span className="text-[#8b5cf6] mr-1.5">▶</span>{q}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     );

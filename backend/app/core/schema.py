@@ -62,6 +62,25 @@ def assess_data_quality(df: pd.DataFrame) -> dict:
     }
 
 
+def detect_anomalies(df: pd.DataFrame) -> list[dict]:
+    """Detect statistical outliers (3-sigma rule) in numeric columns."""
+    anomalies = []
+    for col in df.select_dtypes(include="number").columns:
+        mean = df[col].mean()
+        std = df[col].std()
+        if std == 0 or pd.isna(std):
+            continue
+        outlier_mask = (df[col] - mean).abs() > 3 * std
+        outlier_count = int(outlier_mask.sum())
+        if outlier_count > 0:
+            anomalies.append({
+                "column": col,
+                "count": outlier_count,
+                "message": f"{outlier_count} suspicious value{'s' if outlier_count > 1 else ''} in '{col}' (outside normal range)",
+            })
+    return anomalies[:5]  # Cap at 5 columns
+
+
 def suggest_metrics(df: pd.DataFrame) -> list[dict]:
     """Auto-suggest semantic layer metrics based on column names and types."""
     suggestions = []

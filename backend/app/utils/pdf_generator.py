@@ -197,7 +197,29 @@ def generate_pdf_report(
             role = msg.get("role", "")
             content = sanitize_text(msg.get("content", ""))
 
-            if role == "user":
+            if role == "system":
+                # Show anomaly detection results from upload message
+                anomalies = msg.get("anomalies", [])
+                if anomalies:
+                    story.append(Paragraph("Anomaly Detection Results", styles["Heading3"]))
+                    anomaly_data = [["Column", "Suspicious Rows", "Detail"]]
+                    for a in anomalies:
+                        anomaly_data.append([
+                            sanitize_text(a.get("column", "")),
+                            str(a.get("count", "")),
+                            sanitize_text(a.get("message", "")),
+                        ])
+                    at = Table(anomaly_data, colWidths=[100, 100, 220])
+                    at.setStyle(TableStyle([
+                        ("BACKGROUND", (0, 0), (-1, 0), HexColor("#f59e0b")),
+                        ("TEXTCOLOR", (0, 0), (-1, 0), HexColor("#ffffff")),
+                        ("FONTSIZE", (0, 0), (-1, -1), 9),
+                        ("GRID", (0, 0), (-1, -1), 0.5, HexColor("#e5e7eb")),
+                        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [HexColor("#fffbeb"), HexColor("#ffffff")]),
+                    ]))
+                    story.append(at)
+                    story.append(Spacer(1, 12))
+            elif role == "user":
                 story.append(Paragraph(f"Q: {content}", question_style))
             elif role == "assistant":
                 story.append(Paragraph(f"A: {content}", answer_style))
