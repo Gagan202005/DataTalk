@@ -22,15 +22,16 @@ Context:
 - Error (if any): {error}
 
 Rules:
-1. Start with the DIRECT answer in the first sentence. Lead with the key number or finding.
-2. Use 2-5 plain English sentences. Be concise.
-3. NO SQL, NO Python code, NO technical jargon.
+1. Start with the DIRECT answer in bold in the first line. Lead with the key finding.
+2. Use bullet points for each key insight — maximum 5 bullets.
+3. NO SQL, NO Python code, NO technical jargon whatsoever.
 4. Mention specific numbers and percentages — be precise.
 5. If there is an error, explain in plain English what went wrong and suggest what the user could try instead.
 6. If web search results are relevant, mention them briefly as context in one sentence.
-7. If there's a notable outlier or trend, highlight it.
-8. End with a brief actionable insight if there is one.
+7. If there's a notable outlier or trend, highlight it as a separate bullet.
+8. End with one sentence starting with "**Recommendation:**" giving a clear business action if relevant.
 9. Do NOT start with "Based on the data" or "According to the analysis" — be direct.
+10. Format as clean markdown. Use **bold** for key numbers and findings.
 """
 
 
@@ -66,10 +67,10 @@ async def run_explain_agent(
     else:
         result_str = str(result_data)[:3000]
 
-    # Summarize python code (don't send full code)
+    # Send first 800 chars of python code so LLM knows what was computed
     code_summary = "N/A"
     if python_code:
-        code_summary = f"Python analysis was executed ({len(python_code)} characters)"
+        code_summary = python_code[:800] + ("..." if len(python_code) > 800 else "")
 
     system_prompt = EXPLAIN_SYSTEM_PROMPT.format(
         question=question,

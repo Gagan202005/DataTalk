@@ -266,82 +266,70 @@ async def _handle_general(question: str, schema: list) -> dict:
     is_greeting = any(g in question_lower for g in greetings)
     is_dataset_question = any(k in question_lower for k in dataset_description_keywords)
 
-    if is_dataset_question:
-        # Group columns by type for a structured summary
+    if is_dataset_question or is_greeting:
         numeric_cols = [s for s in schema if s["type"] in ("INTEGER", "REAL", "FLOAT", "NUMERIC")]
-        text_cols = [s for s in schema if s["type"] == "TEXT"]
-        date_cols = [s for s in schema if s["type"] in ("DATE", "TIMESTAMP", "DATETIME")]
-        bool_cols = [s for s in schema if s["type"] == "BOOLEAN"]
+        text_cols   = [s for s in schema if s["type"] == "TEXT"]
+        date_cols   = [s for s in schema if s["type"] in ("DATE", "TIMESTAMP", "DATETIME")]
+        bool_cols   = [s for s in schema if s["type"] == "BOOLEAN"]
+        bad_cols    = [s for s in schema if s.get("missing_pct", 0) > 20]
 
-        type_lines = []
-        if numeric_cols:
-            names = ", ".join(c["name"] for c in numeric_cols[:5])
-            suffix = f" + {len(numeric_cols) - 5} more" if len(numeric_cols) > 5 else ""
-            type_lines.append(f"**{len(numeric_cols)} numeric:** {names}{suffix}")
+        # ── Column groups (human-readable labels, not raw type names) ──
+        groups = []
         if text_cols:
-            names = ", ".join(c["name"] for c in text_cols[:5])
-            suffix = f" + {len(text_cols) - 5} more" if len(text_cols) > 5 else ""
-            type_lines.append(f"**{len(text_cols)} text:** {names}{suffix}")
+            groups.append(f"**Labels & categories** — {', '.join(c['name'] for c in text_cols[:6])}"
+                          + (f" + {len(text_cols)-6} more" if len(text_cols) > 6 else ""))
+        if numeric_cols:
+            groups.append(f"**Numbers & measurements** — {', '.join(c['name'] for c in numeric_cols[:5])}"
+                          + (f" + {len(numeric_cols)-5} more" if len(numeric_cols) > 5 else ""))
         if date_cols:
-            names = ", ".join(c["name"] for c in date_cols)
-            type_lines.append(f"**{len(date_cols)} date/time:** {names}")
+            groups.append(f"**Dates & timestamps** — {', '.join(c['name'] for c in date_cols)}")
         if bool_cols:
-            type_lines.append(f"**{len(bool_cols)} boolean:** {', '.join(c['name'] for c in bool_cols)}")
+            groups.append(f"**Yes/No flags** — {', '.join(c['name'] for c in bool_cols)}")
 
-        column_details = "\n".join([
-            f"• **{s['name']}** ({s['type']}) — e.g., {', '.join(str(v) for v in s['sample_values'][:2])}"
-            + (f"  ⚠️ {s['missing_pct']:.0f}% missing" if s.get("missing_pct", 0) > 10 else "")
-            for s in schema
-        ])
+        groups_md = "\n".join(f"- {g}" for g in groups)
 
-        # Build schema-aware example questions
+        # ── Data quality warnings (only columns with >20% missing) ──
+        quality_md = ""
+        if bad_cols:
+            quality_md = "\n\n**Data quality heads-up:**\n" + "\n".join(
+                f"- **{c['name']}** has {c['missing_pct']:.0f}% missing values — treat with caution"
+                for c in bad_cols[:4]
+            )
+
+        # ── Smart example questions ──
         examples = []
         if numeric_cols and text_cols:
             examples.append(f'"What is the total {numeric_cols[0]["name"]} by {text_cols[0]["name"]}?"')
         if date_cols and numeric_cols:
-            examples.append(f'"Show me {numeric_cols[0]["name"]} trends over time"')
-        if date_cols:
-            examples.append(f'"Plot incidents per year as a graph"')
+            examples.append(f'"Show {numeric_cols[0]["name"]} trends over time as a line chart"')
         if len(numeric_cols) >= 2:
             examples.append(f'"Run a correlation analysis on {numeric_cols[0]["name"]} and {numeric_cols[1]["name"]}"')
-        examples.append('"What are the top 10 records by value?"')
+        if text_cols:
+            examples.append(f'"What are the top 10 {text_cols[0]["name"]} by count?"')
+        if numeric_cols:
+            examples.append(f'"Show a distribution of {numeric_cols[0]["name"]}"')
+
+        examples_md = "\n".join(f"- {e}" for e in examples[:4])
+
+        greeting = "Hello! I'm DataTalk — ask me anything about your data.\n\n" if is_greeting else ""
 
         answer = (
-            f"Your dataset has **{len(schema)} columns** ({len(schema)} fields total):\n\n"
-            + "\n".join(f"• {t}" for t in type_lines)
-            + f"\n\n**Full column list:**\n{column_details}"
-            + f"\n\n**Try asking:**\n"
-            + "\n".join(f"• {e}" for e in examples[:4])
-        )
-
-    elif is_greeting:
-        columns = [s["name"] for s in schema]
-        numeric_cols = [s for s in schema if s["type"] in ("INTEGER", "REAL", "FLOAT", "NUMERIC")]
-        text_cols = [s for s in schema if s["type"] == "TEXT"]
-        date_cols = [s for s in schema if s["type"] in ("DATE", "TIMESTAMP", "DATETIME")]
-
-        examples = []
-        if numeric_cols and text_cols:
-            examples.append(f'"What is the total {numeric_cols[0]["name"]} by {text_cols[0]["name"]}?"')
-        if date_cols:
-            examples.append(f'"Show me trends over time"')
-        if len(numeric_cols) >= 2:
-            examples.append(f'"Correlate {numeric_cols[0]["name"]} and {numeric_cols[1]["name"]}"')
-        examples.append('"What are the top 10 records?"')
-
-        answer = (
-            f"Hello! I'm DataTalk. Your dataset has **{len(schema)} columns**: "
-            f"{', '.join(columns[:6])}{'...' if len(columns) > 6 else ''}.\n\n"
-            f"Try asking:\n"
-            + "\n".join(f"• {e}" for e in examples)
+            f"{greeting}"
+            f"## Your dataset at a glance\n\n"
+            f"It contains **{len(schema)} columns** of information:\n\n"
+            f"{groups_md}"
+            f"{quality_md}\n\n"
+            f"---\n\n"
+            f"**Here are some things you can ask:**\n\n"
+            f"{examples_md}"
         )
 
     else:
         answer = (
-            "I can help you analyze your dataset. Try asking something like:\n"
-            "• \"What is this dataset about?\"\n"
-            "• \"Show me a graph of incidents per year\"\n"
-            "• \"What are the top categories by count?\""
+            "I can help you explore your dataset. Try asking:\n\n"
+            "- \"What is this dataset about?\"\n"
+            "- \"Show me a chart of the top categories\"\n"
+            "- \"What are the top 10 records by value?\""
         )
 
     return {
