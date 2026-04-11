@@ -80,13 +80,33 @@ export default function ChartRenderer({ chart, matplotlib_image }) {
 function renderChart(type, data, x_key, y_key) {
   const yKeys = Array.isArray(y_key) ? y_key : [y_key];
 
+  // Rotate x-axis labels if many data points to prevent overlap
+  const xAxisProps = {
+    ...axisStyle,
+    dataKey: x_key,
+    ...(data.length > 10 ? {
+      angle: -35,
+      textAnchor: 'end',
+      height: 55,
+      interval: 0,
+    } : {}),
+  };
+
+  // Format large Y-axis numbers compactly (e.g. 1500 → 1.5k)
+  const yAxisFormatter = (v) => {
+    if (typeof v !== 'number') return v;
+    if (Math.abs(v) >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`;
+    if (Math.abs(v) >= 1_000) return `${(v / 1_000).toFixed(1)}k`;
+    return v;
+  };
+
   switch (type) {
     case 'bar':
       return (
-        <BarChart data={data}>
+        <BarChart data={data} margin={{ bottom: data.length > 10 ? 30 : 5 }}>
           <CartesianGrid {...gridStyle} />
-          <XAxis dataKey={x_key} {...axisStyle} />
-          <YAxis {...axisStyle} />
+          <XAxis {...xAxisProps} />
+          <YAxis {...axisStyle} tickFormatter={yAxisFormatter} />
           <Tooltip contentStyle={tooltipStyle} cursor={{ fill: 'rgba(255,255,255,0.03)' }} />
           <Legend wrapperStyle={{ fontSize: '11px', color: '#94a3b8' }} />
           {yKeys.map((key, i) => (
@@ -103,10 +123,10 @@ function renderChart(type, data, x_key, y_key) {
 
     case 'line':
       return (
-        <LineChart data={data}>
+        <LineChart data={data} margin={{ bottom: data.length > 10 ? 30 : 5 }}>
           <CartesianGrid {...gridStyle} />
-          <XAxis dataKey={x_key} {...axisStyle} />
-          <YAxis {...axisStyle} />
+          <XAxis {...xAxisProps} />
+          <YAxis {...axisStyle} tickFormatter={yAxisFormatter} />
           <Tooltip contentStyle={tooltipStyle} />
           <Legend wrapperStyle={{ fontSize: '11px', color: '#94a3b8' }} />
           {yKeys.map((key, i) => (
@@ -125,10 +145,10 @@ function renderChart(type, data, x_key, y_key) {
 
     case 'area':
       return (
-        <AreaChart data={data}>
+        <AreaChart data={data} margin={{ bottom: data.length > 10 ? 30 : 5 }}>
           <CartesianGrid {...gridStyle} />
-          <XAxis dataKey={x_key} {...axisStyle} />
-          <YAxis {...axisStyle} />
+          <XAxis {...xAxisProps} />
+          <YAxis {...axisStyle} tickFormatter={yAxisFormatter} />
           <Tooltip contentStyle={tooltipStyle} />
           <Legend wrapperStyle={{ fontSize: '11px', color: '#94a3b8' }} />
           {yKeys.map((key, i) => (

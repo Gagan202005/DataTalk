@@ -17,12 +17,18 @@ Rules:
 3. Always include meaningful aliases with AS.
 4. For time-series: ORDER BY the date/time column.
 5. For comparisons: include all relevant grouping columns.
-6. LIMIT 100 unless user specifies otherwise.
-7. The table name is always 'data'.
-8. For date filtering use standard SQL: WHERE date_column >= '2024-01-01' (DuckDB handles ISO date strings natively).
-9. Output ONLY the raw SQL query — no markdown, no explanation, no backticks, no code fences.
-10. If the question cannot be answered with the given schema, return: SELECT 'CANNOT_ANSWER' as error;
-11. DuckDB supports STRFTIME, DATE_TRUNC, DATE_DIFF, and standard window functions — use them for time analysis.
+6. The table name is always 'data'.
+7. For date filtering use standard SQL: WHERE date_column >= '2024-01-01' (DuckDB handles ISO date strings natively).
+8. Output ONLY the raw SQL query — no markdown, no explanation, no backticks, no code fences.
+9. If the question cannot be answered with the given schema, return: SELECT 'CANNOT_ANSWER' as error;
+10. DuckDB supports STRFTIME, DATE_TRUNC, DATE_DIFF, and standard window functions — use them for time analysis.
+
+CRITICAL — GRAPHS AND AGGREGATIONS:
+11. When the user asks for a graph, chart, plot, or visualization — ALWAYS aggregate with GROUP BY + COUNT(*) or SUM/AVG. NEVER select individual rows for a chart.
+12. For "X vs Y graph" or "X by Y": GROUP BY the categorical/time column and aggregate (COUNT or SUM) the numeric/count dimension.
+13. For time-based charts (year vs count, monthly trend, etc.): extract the time unit using STRFTIME (e.g., STRFTIME('%Y', date_col) AS year), GROUP BY it, and COUNT(*) AS incident_count (or SUM of numeric col). ORDER BY the time column.
+14. Aggregation queries (GROUP BY) must NOT have a LIMIT unless the user explicitly asks for "top N". All groups should be returned.
+15. Only use LIMIT 100 for raw record lookups where no GROUP BY is present.
 """
 
 # System prompt for chart recommendation
@@ -180,11 +186,22 @@ async def _recommend_chart(sql: str, sample_data: list, columns: list) -> dict |
     )
 
     if result.get("should_chart"):
+        x_key = result.get("x_key", columns[0] if columns else "name")
+        y_key = result.get("y_key", columns[1] if len(columns) > 1 else columns[0])
+
+        # Validate keys actually exist in the data to prevent frontend crashes
+        if sample_data:
+            available_keys = list(sample_data[0].keys())
+            if x_key not in available_keys:
+                x_key = available_keys[0]
+            if y_key not in available_keys:
+                y_key = available_keys[1] if len(available_keys) > 1 else available_keys[0]
+
         return {
             "type": result.get("chart_type", "bar"),
             "data": sample_data,  # Will be replaced with full data in orchestrator
-            "x_key": result.get("x_key", columns[0] if columns else "name"),
-            "y_key": result.get("y_key", columns[1] if len(columns) > 1 else columns[0]),
+            "x_key": x_key,
+            "y_key": y_key,
             "title": result.get("title", "Chart"),
         }
     return None

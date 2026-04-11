@@ -235,28 +235,95 @@ async def _handle_general(question: str, schema: list) -> dict:
     """Handle general/meta questions without calling any agent."""
     question_lower = question.lower().strip()
 
-    # Handle common greetings
-    greetings = ["hello", "hi", "hey", "help", "what can you do"]
-    if any(g in question_lower for g in greetings):
-        columns = [s["name"] for s in schema]
-        answer = (
-            f"👋 Hello! I'm DataTalk, your AI data analyst. I can help you analyze your dataset "
-            f"which has {len(schema)} columns: {', '.join(columns[:8])}{'...' if len(columns) > 8 else ''}.\n\n"
-            f"Try asking me things like:\n"
-            f"• \"What is the total amount by region?\"\n"
-            f"• \"Show me monthly trends\"\n"
-            f"• \"Run a correlation analysis\"\n"
-            f"• \"Why did transactions drop in March?\"\n"
-            f"• \"What's trending in banking news?\""
-        )
-    elif "column" in question_lower or "schema" in question_lower or "what data" in question_lower:
-        column_info = "\n".join([
-            f"• **{s['name']}** ({s['type']}) — e.g., {', '.join(s['sample_values'][:2])}"
+    # Keywords that indicate the user wants to understand the dataset
+    dataset_description_keywords = [
+        "about", "describe", "overview", "summary", "tell me", "what is this",
+        "what kind", "what type", "what does", "what data", "what columns",
+        "column", "schema", "fields", "variables", "contain", "have in it",
+        "csv", "dataset", "file",
+    ]
+
+    greetings = ["hello", "hi", "hey", "what can you do"]
+    is_greeting = any(g in question_lower for g in greetings)
+    is_dataset_question = any(k in question_lower for k in dataset_description_keywords)
+
+    if is_dataset_question:
+        # Group columns by type for a structured summary
+        numeric_cols = [s for s in schema if s["type"] in ("INTEGER", "REAL", "FLOAT", "NUMERIC")]
+        text_cols = [s for s in schema if s["type"] == "TEXT"]
+        date_cols = [s for s in schema if s["type"] in ("DATE", "TIMESTAMP", "DATETIME")]
+        bool_cols = [s for s in schema if s["type"] == "BOOLEAN"]
+
+        type_lines = []
+        if numeric_cols:
+            names = ", ".join(c["name"] for c in numeric_cols[:5])
+            suffix = f" + {len(numeric_cols) - 5} more" if len(numeric_cols) > 5 else ""
+            type_lines.append(f"**{len(numeric_cols)} numeric:** {names}{suffix}")
+        if text_cols:
+            names = ", ".join(c["name"] for c in text_cols[:5])
+            suffix = f" + {len(text_cols) - 5} more" if len(text_cols) > 5 else ""
+            type_lines.append(f"**{len(text_cols)} text:** {names}{suffix}")
+        if date_cols:
+            names = ", ".join(c["name"] for c in date_cols)
+            type_lines.append(f"**{len(date_cols)} date/time:** {names}")
+        if bool_cols:
+            type_lines.append(f"**{len(bool_cols)} boolean:** {', '.join(c['name'] for c in bool_cols)}")
+
+        column_details = "\n".join([
+            f"• **{s['name']}** ({s['type']}) — e.g., {', '.join(str(v) for v in s['sample_values'][:2])}"
+            + (f"  ⚠️ {s['missing_pct']:.0f}% missing" if s.get("missing_pct", 0) > 10 else "")
             for s in schema
         ])
-        answer = f"Your dataset has {len(schema)} columns:\n{column_info}"
+
+        # Build schema-aware example questions
+        examples = []
+        if numeric_cols and text_cols:
+            examples.append(f'"What is the total {numeric_cols[0]["name"]} by {text_cols[0]["name"]}?"')
+        if date_cols and numeric_cols:
+            examples.append(f'"Show me {numeric_cols[0]["name"]} trends over time"')
+        if date_cols:
+            examples.append(f'"Plot incidents per year as a graph"')
+        if len(numeric_cols) >= 2:
+            examples.append(f'"Run a correlation analysis on {numeric_cols[0]["name"]} and {numeric_cols[1]["name"]}"')
+        examples.append('"What are the top 10 records by value?"')
+
+        answer = (
+            f"Your dataset has **{len(schema)} columns** ({len(schema)} fields total):\n\n"
+            + "\n".join(f"• {t}" for t in type_lines)
+            + f"\n\n**Full column list:**\n{column_details}"
+            + f"\n\n**Try asking:**\n"
+            + "\n".join(f"• {e}" for e in examples[:4])
+        )
+
+    elif is_greeting:
+        columns = [s["name"] for s in schema]
+        numeric_cols = [s for s in schema if s["type"] in ("INTEGER", "REAL", "FLOAT", "NUMERIC")]
+        text_cols = [s for s in schema if s["type"] == "TEXT"]
+        date_cols = [s for s in schema if s["type"] in ("DATE", "TIMESTAMP", "DATETIME")]
+
+        examples = []
+        if numeric_cols and text_cols:
+            examples.append(f'"What is the total {numeric_cols[0]["name"]} by {text_cols[0]["name"]}?"')
+        if date_cols:
+            examples.append(f'"Show me trends over time"')
+        if len(numeric_cols) >= 2:
+            examples.append(f'"Correlate {numeric_cols[0]["name"]} and {numeric_cols[1]["name"]}"')
+        examples.append('"What are the top 10 records?"')
+
+        answer = (
+            f"Hello! I'm DataTalk. Your dataset has **{len(schema)} columns**: "
+            f"{', '.join(columns[:6])}{'...' if len(columns) > 6 else ''}.\n\n"
+            f"Try asking:\n"
+            + "\n".join(f"• {e}" for e in examples)
+        )
+
     else:
-        answer = "I'm here to help you analyze your data! Try asking a question about your dataset."
+        answer = (
+            "I can help you analyze your dataset. Try asking something like:\n"
+            "• \"What is this dataset about?\"\n"
+            "• \"Show me a graph of incidents per year\"\n"
+            "• \"What are the top categories by count?\""
+        )
 
     return {
         "agent_used": "general",
