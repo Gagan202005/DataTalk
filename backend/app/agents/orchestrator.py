@@ -13,22 +13,28 @@ from app.agents.explain_agent import run_explain_agent
 from app.core.confidence import calculate_confidence
 
 
-CLASSIFY_SYSTEM_PROMPT = """You are a routing agent for a data analysis platform. Given a user question and a database schema, classify the question into exactly one category.
+CLASSIFY_SYSTEM_PROMPT = """You are a routing agent for a data analysis platform. Classify the user question into exactly one category.
 
 Categories:
-- "sql_query": Questions answerable with a SQL query (aggregations, filters, grouping, counts, totals, averages, comparisons between groups, rankings, top/bottom N)
-- "visualization": Questions explicitly requesting charts, plots, graphs, or visual representation. Also route here if question says "show me", "plot", "chart", "visualize", "graph"
-- "statistical_analysis": Questions requiring Python code (correlations, distributions, regressions, statistical tests, clustering, predictions, outlier detection, complex calculations)
-- "web_search": Questions about external context, news, trends, events, or industry information NOT answerable from the data
-- "general": Greetings ("hello"), meta-questions about the data ("what columns do you have?"), or questions about the tool itself ("what can you do?")
+- "sql_query": Simple data retrieval — totals, counts, averages, filters, grouping, rankings, top/bottom N. SQL can answer this without Python.
+- "visualization": Bar charts, line charts, pie charts, area charts of aggregated data. SQL + Recharts can render this.
+- "statistical_analysis": Anything requiring Python/matplotlib — correlations, heatmaps, distributions, histograms, box plots, scatter plots with regression, pairplots, outlier detection, clustering, statistical tests, pivot tables, any chart that needs seaborn or matplotlib.
+- "web_search": Questions about external news, trends, events, or industry context NOT in the data.
+- "general": Greetings or meta-questions about the dataset or tool.
+
+IMPORTANT routing rules:
+- "correlation", "heatmap", "correlation matrix", "correlation analysis" → ALWAYS "statistical_analysis"
+- "distribution", "histogram", "box plot", "violin plot" → ALWAYS "statistical_analysis"
+- "scatter plot", "regression", "trend line", "pairplot", "pair plot" → ALWAYS "statistical_analysis"
+- "matplotlib", "seaborn", "python analysis", "statistical" → ALWAYS "statistical_analysis"
+- Simple "bar chart of X by Y", "line chart over time", "pie chart of categories" → "visualization"
+- "total", "count", "average", "sum", "group by", "top N" → "sql_query"
 
 Schema: {schema}
 Semantic Layer: {semantic_layer}
 
 Respond with ONLY a JSON object:
 {{"category": "...", "needs_web_context": true/false, "search_query": "..." or null, "reasoning": "one sentence"}}
-
-"needs_web_context" should be true if the question has a "why" component or asks about external factors that might relate to the data trends.
 """
 
 
@@ -57,6 +63,19 @@ async def process_question(
     classification = await _classify_question(question, schema, semantic_layer)
     category = classification.get("category", "sql_query")
     needs_web = classification.get("needs_web_context", False) and include_web
+
+    # Hard override: keyword-based routing that always wins over LLM classification.
+    # Prevents common misrouting of statistical questions to sql_agent.
+    q_lower = question.lower()
+    STATISTICAL_KEYWORDS = [
+        "correlation", "heatmap", "distribution", "histogram",
+        "box plot", "boxplot", "violin", "scatter", "regression",
+        "pairplot", "pair plot", "outlier", "cluster", "clustering",
+        "statistical", "statistics", "matplotlib", "seaborn",
+        "std", "variance", "skew", "kurtosis", "covariance",
+    ]
+    if any(kw in q_lower for kw in STATISTICAL_KEYWORDS):
+        category = "statistical_analysis"
 
     # Step 2: Route to appropriate agent(s)
     result = {}

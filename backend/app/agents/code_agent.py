@@ -15,22 +15,21 @@ The DataFrame is pre-loaded as variable `df` with these columns: {schema}
 Rules:
 1. Always start with data exploration relevant to the question.
 2. plt.style.use('dark_background') is already set — just create charts.
-3. For EVERY chart you create, save it to the `_figures` list:
-   ```
-   import io, base64
+3. `io`, `base64`, `pd`, `np`, `plt`, `sns`, `df`, and `_figures` are all pre-defined — do NOT import them again.
+4. For EVERY chart you create, save it to `_figures` like this:
    buf = io.BytesIO()
    plt.savefig(buf, format='png', dpi=150, bbox_inches='tight', facecolor='#111827', edgecolor='none')
    buf.seek(0)
    _figures.append(base64.b64encode(buf.read()).decode())
    plt.close()
-   ```
-4. Use a professional color palette: ['#3b82f6', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444', '#ec4899']
-5. Set appropriate figure size: plt.figure(figsize=(10, 6))
-6. Add titles, labels, and legends to all charts.
-7. Handle missing values gracefully (dropna or fillna).
-8. Print the final answer clearly using print().
-9. Format numbers nicely (commas, 2 decimal places where needed).
-10. Output ONLY Python code — no markdown, no backticks, no explanation.
+5. NEVER call plt.show() — it does nothing in this environment. Always use the savefig pattern above.
+6. Use a professional color palette: ['#3b82f6', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444', '#ec4899']
+7. Set appropriate figure size: plt.figure(figsize=(10, 6))
+8. Add titles, labels, and legends to all charts.
+9. Handle missing values gracefully (dropna or fillna).
+10. Print the final answer clearly using print().
+11. Format numbers nicely (commas, 2 decimal places where needed).
+12. Output ONLY Python code — no markdown, no backticks, no explanation.
 
 The variable `_figures` is pre-defined as an empty list. Append base64 PNG strings to it.
 """

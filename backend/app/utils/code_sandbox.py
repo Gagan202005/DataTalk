@@ -56,6 +56,24 @@ def execute_code(code: str, dataframe=None) -> CodeExecutionResult:
         matplotlib.use("Agg")  # Non-interactive backend
         import matplotlib.pyplot as plt
         plt.style.use("dark_background")
+
+        # Monkey-patch plt.show() so LLM-generated code that calls plt.show()
+        # automatically saves the figure to _figures instead of discarding it.
+        # With the Agg backend, plt.show() clears figures without rendering anything,
+        # which is why charts were missing from responses.
+        def _safe_show(*args, **kwargs):
+            for fig_num in plt.get_fignums():
+                fig = plt.figure(fig_num)
+                buf = io.BytesIO()
+                fig.savefig(
+                    buf, format="png", dpi=150, bbox_inches="tight",
+                    facecolor="#111827", edgecolor="none",
+                )
+                buf.seek(0)
+                namespace["_figures"].append(base64.b64encode(buf.read()).decode())
+                plt.close(fig)
+
+        plt.show = _safe_show
         namespace["matplotlib"] = matplotlib
         namespace["plt"] = plt
     except ImportError:
@@ -92,7 +110,7 @@ def execute_code(code: str, dataframe=None) -> CodeExecutionResult:
     namespace["collections"] = __import__("collections")
     namespace["statistics"] = __import__("statistics")
 
-    # Capture stdout and stderr
+    # Capture stdout and stderr (use errors='replace' so emoji don't crash on Windows cp1252)
     stdout_capture = io.StringIO()
     stderr_capture = io.StringIO()
 
@@ -118,9 +136,12 @@ def execute_code(code: str, dataframe=None) -> CodeExecutionResult:
         result.success = False
         return result
 
-    # Collect results
-    result.stdout = stdout_capture.getvalue()
-    result.stderr = stderr_capture.getvalue()
+    # Collect results — encode to ASCII with replace so emoji never cause charmap errors
+    def _safe_str(s: str) -> str:
+        return s.encode("utf-8", errors="replace").decode("utf-8", errors="replace")
+
+    result.stdout = _safe_str(stdout_capture.getvalue())
+    result.stderr = _safe_str(stderr_capture.getvalue())
     result.figures = namespace.get("_figures", [])
     result.error = execution_error[0]
     result.success = execution_error[0] is None
@@ -145,7 +166,7 @@ def execute_code(code: str, dataframe=None) -> CodeExecutionResult:
 
 
 def _get_safe_builtins() -> dict:
-    """Return a restricted set of Python builtins (no open/exec/eval/import)."""
+    """Return a restricted set of Python builtins with a whitelisted import function."""
     import builtins
     safe = {}
     allowed = [
@@ -160,11 +181,31 @@ def _get_safe_builtins() -> dict:
         "True", "False", "None",
         "Exception", "ValueError", "TypeError", "KeyError",
         "IndexError", "RuntimeError", "StopIteration",
-        "ZeroDivisionError", "AttributeError",
+        "ZeroDivisionError", "AttributeError", "NameError",
+        "NotImplementedError", "OverflowError",
     ]
     for name in allowed:
         if hasattr(builtins, name):
             safe[name] = getattr(builtins, name)
 
-    # Explicitly block: open, exec, eval, compile, __import__, input, exit, quit
+    # Allow imports only for whitelisted data-science modules
+    ALLOWED_IMPORTS = {
+        "pandas", "numpy", "matplotlib", "seaborn",
+        "scipy", "sklearn", "io", "base64", "json",
+        "math", "re", "datetime", "collections",
+        "statistics", "itertools", "functools", "operator",
+        "warnings", "textwrap", "string", "random",
+    }
+    original_import = builtins.__import__
+
+    def safe_import(name, *args, **kwargs):
+        base = name.split(".")[0]
+        if base not in ALLOWED_IMPORTS:
+            raise ImportError(
+                f"Import of '{name}' is not allowed in this sandbox. "
+                f"Allowed: {', '.join(sorted(ALLOWED_IMPORTS))}"
+            )
+        return original_import(name, *args, **kwargs)
+
+    safe["__import__"] = safe_import
     return safe

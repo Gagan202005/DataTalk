@@ -88,7 +88,7 @@ class GeminiClient:
                 # Rate limit error — wait and retry
                 if "429" in error_str or "resource_exhausted" in error_str:
                     wait_time = (attempt + 1) * 5  # 5s, 10s, 15s
-                    print(f"⚠️ Rate limited. Waiting {wait_time}s before retry {attempt + 1}...")
+                    print(f"[WARN] Rate limited. Waiting {wait_time}s before retry {attempt + 1}...")
                     time.sleep(wait_time)
                     continue
 
