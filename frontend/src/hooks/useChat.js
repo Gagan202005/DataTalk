@@ -74,6 +74,7 @@ export function useChat() {
         matplotlib_image: data.matplotlib_image,
         confidence: data.confidence,
         sources: data.sources,
+        suggestions: data.suggestions || [],
         agent_used: data.agent_used,
         timestamp: data.timestamp || new Date().toISOString(),
       };

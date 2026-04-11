@@ -164,6 +164,24 @@ export default function ChatMessage({ message, onSendMessage }) {
                 })}
               </div>
             )}
+
+            {/* Follow-up suggestions — clicking auto-submits the question */}
+            {message.suggestions && message.suggestions.length > 0 && (
+              <div className="mt-4 pt-3 border-t border-[rgba(255,255,255,0.05)]">
+                <p className="text-[10px] font-semibold text-[#64748b] mb-2">💡 You might also ask:</p>
+                <div className="flex flex-wrap gap-2">
+                  {message.suggestions.map((s, i) => (
+                    <button
+                      key={i}
+                      onClick={() => onSendMessage && onSendMessage(s)}
+                      className="px-3 py-1.5 rounded-full text-[11px] font-medium bg-[#8b5cf6]/8 text-[#a78bfa] border border-[#8b5cf6]/20 hover:bg-[#8b5cf6]/20 hover:border-[#8b5cf6]/40 transition-all duration-200 text-left"
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
