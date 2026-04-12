@@ -7,6 +7,7 @@ import ChatInput from './components/ChatInput';
 import WelcomeScreen from './components/WelcomeScreen';
 import Sidebar from './components/Sidebar';
 import BackendStatus from './components/BackendStatus';
+import SplashScreen from './components/SplashScreen';
 import { useChat } from './hooks/useChat';
 
 const PROCESSING_STAGES = [
@@ -17,6 +18,7 @@ const PROCESSING_STAGES = [
 ];
 
 export default function App() {
+  const [showSplash, setShowSplash] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [showUpload, setShowUpload] = useState(false);
   const [stageIdx, setStageIdx] = useState(0);
@@ -37,6 +39,11 @@ export default function App() {
     return () => clearInterval(stageTimer.current);
   }, [chat.isLoading]);
 
+  // Auto-open modal when preprocessResult arrives (file uploaded, wizard ready)
+  useEffect(() => {
+    if (chat.preprocessResult) setShowUpload(true);
+  }, [chat.preprocessResult]);
+
   const handleSuggestionClick = useCallback((text) => {
     if (text === '__upload__') {
       setShowUpload(true);
@@ -48,20 +55,24 @@ export default function App() {
   const hasMessages = chat.messages.length > 0;
 
   return (
-    <div className="app-shell">
-      {/* Sidebar */}
-      <Sidebar
+    <>
+      {showSplash && <SplashScreen onComplete={() => setShowSplash(false)} />}
+      <div className="app-shell">
+        {/* Sidebar */}
+        <Sidebar
         isOpen={sidebarOpen}
         fileData={chat.fileInfo}
         onNewChat={chat.resetChat}
         onClearDataset={chat.resetChat}
         onExportPDF={chat.exportPDF}
+        sessionId={chat.sessionId}
         semanticLayer={chat.semanticLayer}
         onUpdateSemanticLayer={chat.setSemanticLayer}
         schema={chat.schema}
         dataQuality={chat.dataQuality}
         sensitiveColumns={chat.sensitiveColumns}
         onUpdateSensitiveColumns={chat.setSensitiveColumns}
+        tables={chat.tables}
       />
 
       {/* Main */}
@@ -73,10 +84,14 @@ export default function App() {
           </button>
           <div className="topbar-divider" />
           <span className="topbar-title">
-            {chat.fileInfo ? chat.fileInfo.name : 'DataTalk'}
+            {Object.keys(chat.tables).length > 0
+              ? Object.keys(chat.tables).join(' · ')
+              : 'DataTalk'}
           </span>
-          {chat.fileInfo && (
-            <span className="topbar-badge" style={{ marginLeft: 4 }}>Dataset active</span>
+          {Object.keys(chat.tables).length > 0 && (
+            <span className="topbar-badge" style={{ marginLeft: 4 }}>
+              {Object.keys(chat.tables).length === 1 ? 'Dataset active' : `${Object.keys(chat.tables).length} tables active`}
+            </span>
           )}
           <div style={{ flex: 1 }} />
           <BackendStatus />
@@ -85,34 +100,8 @@ export default function App() {
         {/* Messages */}
         <div className="messages-viewport">
           <div className="messages-inner">
-            {!hasMessages && !showUpload && !chat.preprocessResult && (
+            {!hasMessages && (
               <WelcomeScreen onAction={handleSuggestionClick} hasDataset={!!chat.fileInfo} />
-            )}
-
-            {showUpload && !chat.preprocessResult && (
-              <div style={{ maxWidth: 480, margin: '32px auto' }}>
-                <FileUpload
-                  onFileLoaded={(file) => {
-                    setShowUpload(false);
-                    chat.handleUpload(file);
-                  }}
-                  disabled={chat.isLoading}
-                />
-              </div>
-            )}
-
-            {chat.preprocessResult && (
-              <DataPreprocessingWizard
-                detectResult={chat.preprocessResult}
-                onComplete={(result) => {
-                  setShowUpload(false);
-                  chat.finalizeUpload(result);
-                }}
-                onSkip={() => {
-                  setShowUpload(false);
-                  chat.skipPreprocessing();
-                }}
-              />
             )}
 
             {chat.messages.map((msg) => (
@@ -149,6 +138,68 @@ export default function App() {
           </div>
         </div>
 
+        {/* Upload / Preprocessing Modal — sits above chat, never interrupts messages */}
+        {(showUpload || chat.preprocessResult) && (
+          <div
+            style={{
+              position: 'fixed', inset: 0, zIndex: 50,
+              background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              padding: '24px',
+            }}
+            onClick={(e) => {
+              // Close only if clicking the backdrop (not the modal content) and no wizard active
+              if (e.target === e.currentTarget && !chat.preprocessResult) {
+                setShowUpload(false);
+              }
+            }}
+          >
+            <div
+              style={{
+                background: '#fff', borderRadius: 20, boxShadow: '0 24px 64px rgba(0,0,0,0.2)',
+                width: '100%', maxWidth: 520, maxHeight: '90vh', overflowY: 'auto',
+                padding: '32px 28px', position: 'relative',
+              }}
+            >
+              {/* Close button — only when no wizard pending */}
+              {!chat.preprocessResult && (
+                <button
+                  onClick={() => setShowUpload(false)}
+                  style={{
+                    position: 'absolute', top: 14, right: 14,
+                    background: 'none', border: 'none', cursor: 'pointer',
+                    fontSize: 20, color: '#9ca3af', lineHeight: 1,
+                  }}
+                  title="Close"
+                >✕</button>
+              )}
+
+              {showUpload && !chat.preprocessResult && (
+                <FileUpload
+                  onFileLoaded={(file) => {
+                    chat.handleUpload(file);
+                  }}
+                  disabled={chat.isLoading}
+                />
+              )}
+
+              {chat.preprocessResult && (
+                <DataPreprocessingWizard
+                  detectResult={chat.preprocessResult}
+                  onComplete={(result) => {
+                    setShowUpload(false);
+                    chat.finalizeUpload(result);
+                  }}
+                  onSkip={() => {
+                    setShowUpload(false);
+                    chat.skipPreprocessing();
+                  }}
+                />
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Input */}
         <div className="input-area">
           <div className="input-inner">
@@ -162,5 +213,6 @@ export default function App() {
         </div>
       </div>
     </div>
+    </>
   );
 }

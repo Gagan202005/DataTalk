@@ -105,6 +105,15 @@ class DatabaseManager:
         except Exception:
             return 0
 
+    def get_table_row_count(self, table_name: str) -> int:
+        """Get row count for a specific named table."""
+        try:
+            safe_name = self._safe_identifier(table_name)
+            result = self.connection.execute(f"SELECT COUNT(*) FROM {safe_name}")
+            return result.fetchone()[0]
+        except Exception:
+            return 0
+
     def get_column_names(self) -> list[str]:
         """Return all column names in the main table."""
         try:
