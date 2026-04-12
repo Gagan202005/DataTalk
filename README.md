@@ -15,7 +15,8 @@ The system is built on three pillars from the NatWest problem statement: **Clari
 graph LR
     U([👤 User]) --> FE["React\nFrontend"]
     FE -->|REST API| BE["FastAPI\nBackend"]
-    BE --> O["🧠 Orchestrator\nAgent"]
+    BE --> PP["🧹 Preprocessing\nWizard"]
+    PP --> O["🧠 Orchestrator\nAgent"]
 
     O --> SA["SQL Agent"]
     O --> CA["Code Agent"]
@@ -35,7 +36,9 @@ graph LR
     style DB fill:#7c2d12,color:#fff,stroke:#f97316
     style FS fill:#581c87,color:#fff,stroke:#a855f7
     style O fill:#1e293b,color:#fff,stroke:#64748b
+    style PP fill:#065f46,color:#fff,stroke:#10b981
 ```
+
 ### Request Flow (LLD — Sequence Diagram)
 
 ```mermaid
@@ -43,6 +46,7 @@ sequenceDiagram
     actor U as User
     participant F as Frontend
     participant B as FastAPI
+    participant W as Preprocessing Wizard
     participant O as Orchestrator
     participant A as Agent
     participant L as LLM API
@@ -50,8 +54,18 @@ sequenceDiagram
 
     U->>F: Upload CSV / Excel / JSON / TSV
     F->>B: POST /api/upload
-    B->>D: Load, persist, extract schema
-    B-->>F: Schema + quality score + anomaly report
+    B->>W: Parse raw data into temp DataFrame
+    W->>W: detect_issues pipeline
+    Note over W: Silent auto-fixes applied<br/>(whitespace, blank rows, exact duplicates)
+    W-->>F: Medium-risk detections + auto-fix report
+
+    F-->>U: DataPreprocessingWizard UI intercepts
+    Note over U,F: User reviews auto-fixes<br/>Toggles YES/NO on medium-risk issues
+    U->>F: Apply & Continue (or Skip)
+    F->>B: POST /api/preprocess/apply
+    B->>W: apply_decisions (approved modifications)
+    W->>D: Load cleaned dataset into DuckDB session
+    D-->>B: Schema + quality score + anomaly report
 
     U->>F: Ask question in plain English
     F->>B: POST /api/chat
@@ -80,12 +94,77 @@ sequenceDiagram
 ```
 
 ---
+
 ## Demo Video
 
 https://github.com/user-attachments/assets/936c42e9-4a5b-4fc3-8b03-3b8ef8cbb8db
 
 ---
 
+## Data Preprocessing & Quality Wizard
+
+The Data Preprocessing Wizard is a seamless, user-in-the-loop data cleaning pipeline built into the file upload flow. It ensures that the AI agents and DuckDB analytics engine operate on highly structured, clean data — without accidentally mutating data the user wants to retain.
+
+### Three-Phase Pipeline
+
+**Phase 1 — Detection & Auto-fixes (`POST /api/upload`)**
+
+When the user uploads a file, the backend parses it into a temporary Pandas DataFrame and runs the `detect_issues` pipeline, producing two categories of output:
+
+- **Silent Auto-fixes (Zero Risk):** Safe transformations applied immediately — stripping whitespace, removing fully blank rows, and dropping exact duplicates.
+- **Medium-Risk Detections:** Ambiguous issues flagged for user review — parsing currency symbols into numbers, standardising mixed date formats, replacing nulls using median estimation.
+
+The DataFrame is cached in temporary memory mapped to a `session_id`. No database is created at this stage.
+
+**Phase 2 — User Validation (`DataPreprocessingWizard.jsx`)**
+
+A minimalist, interactive UI intercepts the loading funnel and presents the user with a full report of the auto-fixes already applied. For every medium-risk issue detected, the user sees a YES/NO toggle with a concrete data example for context. The user can either **Apply & Continue** with their chosen rules, or **Skip** to retain the raw dataset entirely.
+
+**Phase 3 — Database Serialisation (`POST /api/preprocess/apply`)**
+
+The backend consumes the approved decisions, applies them via `apply_decisions`, and loads the cleaned dataset into the persistent DuckDB session. AI parameters — `schema`, `anomalies`, and `data_quality` — are computed exclusively on this cleaned dataset.
+
+### Preprocessing Flow
+
+```
+User uploads file
+      |
+      v
+Pandas temp DataFrame (in-memory, no DB yet)
+      |
+      v
+detect_issues pipeline
+      |
+      +---> Silent auto-fixes applied immediately
+      |
+      +---> Medium-risk issues → DataPreprocessingWizard UI
+                  |
+                  v
+         User toggles YES/NO per issue
+                  |
+                  v
+         POST /api/preprocess/apply
+                  |
+                  v
+         apply_decisions → cleaned DataFrame
+                  |
+                  v
+         Loaded into DuckDB session
+                  |
+                  v
+         Schema + quality score + anomaly report
+         computed on clean data only
+```
+
+### Extensibility
+
+The engine uses a modular, class-based pipeline (`preprocessor.py`). Adding a new data cleaning rule requires only defining a class that inherits `PreprocessStep` with a `detect()` condition and an `apply()` execution body — no changes to the core pipeline are needed.
+
+### PDF Export Integration
+
+All data transformations — both zero-risk auto-fixes and user-approved decisions — are automatically forwarded through the chat `system` payload in `useChat.js`. When a PDF export is requested, `pdf_generator.py` parses this history to embed a chronological **"Applied Data Preprocessing" audit table** in the report, documenting exactly how the dataset was mutated before analysis began.
+
+---
 
 ## Security by Design
 
@@ -112,7 +191,10 @@ Data boundary — enforced at every step:
   User uploads file
         |
         v
-  Analytical DB (local server)
+  Preprocessing Wizard (local, in-memory only)
+        |
+        v
+  Analytical DB (local server — cleaned data)
         |
         v
   Schema extracted (names + types only)
@@ -139,6 +221,7 @@ Most natural language data tools send your data to a remote model to generate an
 | Answer reliability signal | None provided | Confidence score 0 to 100 with cited data source |
 | Metric consistency | Ad hoc interpretation per query | Semantic layer: define business metrics once, reuse everywhere |
 | Data quality visibility | Not surfaced | Missing value analysis, duplicate detection, 3-sigma anomaly flags |
+| Data cleaning before analysis | Not available | Interactive preprocessing wizard with user-controlled rules and full audit trail |
 
 ---
 
@@ -152,8 +235,9 @@ Most natural language data tools send your data to a remote model to generate an
 - Confidence scoring: every answer rated 0 to 100 with transparent source references
 - Semantic layer: define and reuse custom business metrics across all queries
 - Auto-generated charts: bar, line, scatter, and heatmap driven by natural language
-- PDF export: download full Q&A sessions as formatted, shareable reports
+- PDF export: download full Q&A sessions as formatted, shareable reports with preprocessing audit table
 - Data quality dashboard: missing values, duplicates, and anomaly detection on upload
+- Interactive preprocessing wizard: user-in-the-loop data cleaning with zero-risk auto-fixes and medium-risk approval toggles
 - Multi-format upload: CSV, Excel, JSON, and TSV files up to 50 MB
 
 ---
@@ -238,6 +322,8 @@ DuckDB was selected for its columnar storage model, embedded execution with zero
 
 The Python sandbox is central to the system's analytical depth. Correlations, distributions, regressions, and clustering all require code execution that SQL cannot express. The sandbox makes this safe without sacrificing capability: the LLM generates code against column metadata, the sandbox executes it in isolation, and the result flows back to the user as a chart or summary.
 
+The Preprocessing Wizard runs before data ever reaches DuckDB. By resolving data quality issues in a separate, user-validated phase, the wizard ensures that every subsequent SQL query, Python computation, and confidence score operates on the cleanest possible version of the dataset — and that the user retains full control over what was changed.
+
 ---
 
 ## Folder Structure
@@ -248,13 +334,13 @@ DataTalk/
 │   ├── app/
 │   │   ├── agents/       # Orchestrator, SQL, Code, Search, Explain agents
 │   │   ├── core/         # DB manager, schema analysis, confidence scoring
-│   │   ├── routes/       # Upload, chat, semantic layer, PDF export
-│   │   └── utils/        # LLM client, Python sandbox, PDF generator
+│   │   ├── routes/       # Upload, chat, preprocess/apply, semantic layer, PDF export
+│   │   └── utils/        # LLM client, Python sandbox, PDF generator, preprocessor
 │   ├── requirements.txt
 │   └── .env.example
 ├── frontend/
 │   ├── src/
-│   │   ├── components/   # React UI components
+│   │   ├── components/   # React UI components, DataPreprocessingWizard.jsx
 │   │   ├── hooks/        # Chat state, backend health
 │   │   └── services/     # Axios API client
 │   └── package.json
