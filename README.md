@@ -247,29 +247,29 @@ Most natural language data tools send your data to a remote model to generate an
 
 ## Features
 
-🔍 **Ask in plain English, get instant answers.** No SQL, no training, no waiting on a data team. Just type your question and the system figures out the rest.
+**Ask in plain English, get instant answers.** No SQL, no training, no waiting on a data team. Just type your question and the system figures out the rest.
 
-🤖 **Multi-agent pipeline that picks the right tool for the job.** SQL for aggregations, sandboxed Python for statistics and ML, web search for external context. You don't choose the agent. The orchestrator does.
+**Multi-agent pipeline that picks the right tool for the job.** SQL for aggregations, sandboxed Python for statistics and ML, web search for external context. You don't choose the agent. The orchestrator does.
 
-🔗 **Multi-table analysis across datasets.** Upload multiple files into one session and ask questions that span all of them. The AI writes the JOINs for you, automatically.
+**Multi-table analysis across datasets.** Upload multiple files into one session and ask questions that span all of them. The AI writes the JOINs for you, automatically.
 
-🔒 **Your data never touches the LLM.** Only column names and types are sent to the model. Every query runs locally. This is not a policy, it is an architectural constraint baked into the system.
+**Your data never touches the LLM.** Only column names and types are sent to the model. Every query runs locally. This is not a policy, it is an architectural constraint baked into the system.
 
-🔌 **Swap your LLM provider in one line.** OpenAI, Anthropic, Mistral, or any API-compatible model. Change one variable in `.env` and you are good to go.
+**Swap your LLM provider in one line.** OpenAI, Anthropic, Mistral, or any API-compatible model. Change one variable in `.env` and you are good to go.
 
-🛡️ **Sensitive columns stay hidden.** Flag any column as sensitive and the system blocks it from reaching any LLM agent, even indirectly through the Explain Agent.
+**Sensitive columns stay hidden.** Flag any column as sensitive and the system blocks it from reaching any LLM agent, even indirectly through the Explain Agent.
 
-📊 **Every answer comes with a confidence score.** Rated 0 to 100, with a clear reference to the source data behind the result. You always know how much to trust the output.
+**Every answer comes with a confidence score.** Rated 0 to 100, with a clear reference to the source data behind the result. You always know how much to trust the output.
 
-📐 **Define your metrics once, use them everywhere.** The semantic layer lets you set business definitions like "active user" or "churn rate" so every query uses the same logic.
+**Define your metrics once, use them everywhere.** The semantic layer lets you set business definitions like "active user" or "churn rate" so every query uses the same logic.
 
-📈 **Charts generated automatically from your questions.** Bar, line, scatter, heatmap. Driven entirely by natural language. No drag-and-drop, no configuration panels.
+**Charts generated automatically from your questions.** Bar, line, scatter, heatmap. Driven entirely by natural language. No drag-and-drop, no configuration panels.
 
-📄 **Export full sessions as PDF reports.** Every Q&A, every chart, every preprocessing step, all captured in a clean, shareable document with a full audit trail.
+**Export full sessions as PDF reports.** Every Q&A, every chart, every preprocessing step, all captured in a clean, shareable document with a full audit trail.
 
-🧹 **Data cleaning built right into the upload flow.** The preprocessing wizard auto-fixes safe issues, flags risky ones for your approval, and gives you full control before any analysis starts.
+**Data cleaning built right into the upload flow.** The preprocessing wizard auto-fixes safe issues, flags risky ones for your approval, and gives you full control before any analysis starts.
 
-📁 **Supports CSV, Excel, JSON, and TSV.** Upload files up to 50 MB. The system handles parsing, type detection, and schema extraction on its own.
+**Supports CSV, Excel, JSON, and TSV.** Upload files up to 50 MB. The system handles parsing, type detection, and schema extraction on its own.
 
 ---
 
