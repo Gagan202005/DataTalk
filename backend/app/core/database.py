@@ -13,7 +13,10 @@ import duckdb
 import pandas as pd
 from typing import Any
 
-os.makedirs("sessions", exist_ok=True)
+# Resolve sessions dir relative to the backend root regardless of cwd
+_BACKEND_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+_SESSIONS_DIR = os.path.join(_BACKEND_ROOT, "sessions")
+os.makedirs(_SESSIONS_DIR, exist_ok=True)
 
 
 def _serialize_value(v: Any) -> Any:
@@ -45,17 +48,24 @@ class DatabaseManager:
 
     def __init__(self, session_id: str):
         self.session_id = session_id
-        self.db_path = f"sessions/{session_id}.duckdb"
+        self.db_path = os.path.join(_SESSIONS_DIR, f"{session_id}.duckdb")
         self.connection = duckdb.connect(self.db_path)
         self.table_name = "data"
+
+    @staticmethod
+    def _safe_identifier(name: str) -> str:
+        """Return a safely-quoted DuckDB identifier to prevent SQL injection."""
+        # Strip any existing quotes and double any internal double-quotes
+        return '"' + name.replace('"', '""') + '"'
 
     def load_dataframe(self, df: pd.DataFrame, table_name: str = "data"):
         """Load a pandas DataFrame into DuckDB as a persistent table."""
         self.table_name = table_name
+        safe_name = self._safe_identifier(table_name)
         # Register DataFrame as a temporary view, then persist as a real table
         self.connection.register("_df_temp", df)
-        self.connection.execute(f"DROP TABLE IF EXISTS {table_name}")
-        self.connection.execute(f"CREATE TABLE {table_name} AS SELECT * FROM _df_temp")
+        self.connection.execute(f"DROP TABLE IF EXISTS {safe_name}")
+        self.connection.execute(f"CREATE TABLE {safe_name} AS SELECT * FROM _df_temp")
         self.connection.unregister("_df_temp")
 
     def execute_query(self, sql: str) -> dict[str, Any]:
@@ -89,7 +99,8 @@ class DatabaseManager:
     def get_row_count(self) -> int:
         """Get total row count of the main table."""
         try:
-            result = self.connection.execute(f"SELECT COUNT(*) FROM {self.table_name}")
+            safe_name = self._safe_identifier(self.table_name)
+            result = self.connection.execute(f"SELECT COUNT(*) FROM {safe_name}")
             return result.fetchone()[0]
         except Exception:
             return 0
@@ -98,8 +109,8 @@ class DatabaseManager:
         """Return all column names in the main table."""
         try:
             result = self.connection.execute(
-                f"SELECT column_name FROM information_schema.columns "
-                f"WHERE table_name = '{self.table_name}'"
+                "SELECT column_name FROM information_schema.columns WHERE table_name = ?",
+                [self.table_name],
             )
             return [row[0] for row in result.fetchall()]
         except Exception:

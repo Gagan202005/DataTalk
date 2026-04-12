@@ -137,6 +137,24 @@ async def run_sql_agent(
             "error": f"Could not execute query: {result['error']}",
         }
 
+    # Detect CANNOT_ANSWER sentinel returned by the LLM when the question
+    # cannot be answered from the schema — surface it as a clean error instead
+    # of passing a row like {error: 'CANNOT_ANSWER'} to the explain agent.
+    if (
+        result["data"]
+        and len(result["data"]) == 1
+        and result["data"][0].get("error") == "CANNOT_ANSWER"
+    ):
+        return {
+            "sql_query": sql_query,
+            "data": [],
+            "chart": None,
+            "columns_used": [],
+            "row_count": 0,
+            "total_rows": db.get_row_count(),
+            "error": "This question cannot be answered with the available data columns.",
+        }
+
     # Step 3: Determine chart type (if requested and results are chartable)
     chart = None
     if include_chart and result["data"] and len(result["data"]) > 1:

@@ -85,7 +85,7 @@ def suggest_metrics(df: pd.DataFrame) -> list[dict]:
     """Auto-suggest semantic layer metrics based on column names and types."""
     suggestions = []
     for col in df.columns:
-        if df[col].dtype in ["int64", "float64"]:
+        if pd.api.types.is_numeric_dtype(df[col]):
             suggestions.append({
                 "name": f"total_{col}",
                 "expression": f"SUM({col})",

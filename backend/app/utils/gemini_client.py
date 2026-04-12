@@ -24,7 +24,7 @@ _call_lock = asyncio.Lock()
 _MIN_CALL_INTERVAL = 0.5  # seconds between calls
 
 # Default model — use a valid, available model
-DEFAULT_MODEL = os.getenv("GEMINI_MODEL")
+DEFAULT_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
 
 
 class GeminiClient:
@@ -74,17 +74,21 @@ class GeminiClient:
         last_error = None
 
         for attempt in range(max_retries + 1):
-            # Rate limiting — non-blocking
+            # Rate limiting — compute sleep duration under the lock, then sleep outside it
+            sleep_for = 0.0
             async with _call_lock:
-                now = asyncio.get_event_loop().time()
+                loop = asyncio.get_running_loop()
+                now = loop.time()
                 elapsed = now - _last_call_time
                 if elapsed < _MIN_CALL_INTERVAL:
-                    await asyncio.sleep(_MIN_CALL_INTERVAL - elapsed)
-                _last_call_time = asyncio.get_event_loop().time()
+                    sleep_for = _MIN_CALL_INTERVAL - elapsed
+                _last_call_time = loop.time() + sleep_for
+            if sleep_for > 0:
+                await asyncio.sleep(sleep_for)
 
             try:
                 # Run the blocking SDK call in a thread pool
-                response = await asyncio.get_event_loop().run_in_executor(
+                response = await asyncio.get_running_loop().run_in_executor(
                     None,
                     lambda: model.generate_content(
                         prompt,

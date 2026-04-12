@@ -96,9 +96,11 @@ def run_tests():
             ]
         })
         res.raise_for_status()
-        with open("/tmp/report_test.pdf", "wb") as f:
+        import tempfile, pathlib
+        pdf_path = pathlib.Path(tempfile.gettempdir()) / "report_test.pdf"
+        with open(pdf_path, "wb") as f:
             f.write(res.content)
-        print("✅ 6. PDF Export: SUCCESS (Saved dummy report to /tmp/report_test.pdf)")
+        print(f"✅ 6. PDF Export: SUCCESS (Saved dummy report to {pdf_path})")
     except Exception as e:
         print(f"❌ PDF Export failed: {e}")
 

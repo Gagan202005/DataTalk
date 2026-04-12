@@ -2,8 +2,18 @@
 Search Agent: Web search for contextual information using DuckDuckGo.
 No API key required — completely free.
 """
+import asyncio
 from duckduckgo_search import DDGS
 from typing import Optional
+
+
+def _blocking_search(query: str, max_results: int, time_filter: Optional[str]) -> list:
+    """Run DuckDuckGo search synchronously (called via run_in_executor)."""
+    with DDGS() as ddgs:
+        kwargs = {"max_results": max_results}
+        if time_filter:
+            kwargs["timelimit"] = time_filter
+        return list(ddgs.text(query, **kwargs))
 
 
 async def run_search_agent(
@@ -23,12 +33,10 @@ async def run_search_agent(
         Dict with search_results list and search_query.
     """
     try:
-        with DDGS() as ddgs:
-            kwargs = {"max_results": max_results}
-            if time_filter:
-                kwargs["timelimit"] = time_filter
-
-            results = list(ddgs.text(query, **kwargs))
+        loop = asyncio.get_running_loop()
+        results = await loop.run_in_executor(
+            None, _blocking_search, query, max_results, time_filter
+        )
 
         # Format results
         formatted = []

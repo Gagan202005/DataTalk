@@ -128,15 +128,6 @@ def generate_pdf_report(
         leftIndent=12,
         rightIndent=12,
     )
-    answer_style = ParagraphStyle(
-        "Answer",
-        parent=styles["Normal"],
-        fontSize=10,
-        textColor=HexColor("#1f2937"),
-        spaceBefore=4,
-        spaceAfter=8,
-        leftIndent=12,
-    )
     meta_style = ParagraphStyle(
         "Meta",
         parent=styles["Normal"],

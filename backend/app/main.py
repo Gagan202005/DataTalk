@@ -29,7 +29,8 @@ sessions = {}
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Startup and shutdown lifecycle."""
-    os.makedirs("sessions", exist_ok=True)  # Ensure sessions dir exists on startup
+    from app.core.database import _SESSIONS_DIR
+    os.makedirs(_SESSIONS_DIR, exist_ok=True)  # Ensure sessions dir exists on startup
     os.environ.setdefault("PYTHONIOENCODING", "utf-8")  # Prevent cp1252 emoji crashes
     print("DataTalk Backend starting...")
     yield
@@ -55,7 +56,7 @@ app = FastAPI(
 # CORS — allow frontend dev server
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:5173", "*"],
+    allow_origins=["http://localhost:3000", "http://localhost:5173"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

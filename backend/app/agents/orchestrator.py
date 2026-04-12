@@ -149,6 +149,22 @@ async def process_question(
             "web_results": search_result.get("results", []),
         }
 
+    else:
+        # Unknown category — fall back to SQL agent
+        sql_result = await run_sql_agent(question=question, session=session, include_chart=include_chart)
+        result = {
+            "agent_used": "sql_agent",
+            "sql_query": sql_result["sql_query"],
+            "python_code": None,
+            "chart": sql_result.get("chart"),
+            "matplotlib_image": None,
+            "data": sql_result.get("data", []),
+            "columns_used": sql_result.get("columns_used", []),
+            "row_count": sql_result.get("row_count", 0),
+            "total_rows": sql_result.get("total_rows", 0),
+            "error": sql_result.get("error"),
+        }
+
     # Step 3: Fetch web context (if needed and not already a web search)
     web_results = result.get("web_results", [])
     if needs_web and category != "web_search":
@@ -197,8 +213,11 @@ async def process_question(
     if category == "general" and result.get("answer"):
         answer = result["answer"]
 
-    # Step 4b: Generate follow-up suggestions (all queries, including sensitive)
-    suggestions = await _suggest_followups(question, answer, schema)
+    # Step 4b: Generate follow-up suggestions (skip on error to avoid wasted API calls)
+    if result.get("error"):
+        suggestions = []
+    else:
+        suggestions = await _suggest_followups(question, answer, schema)
 
     # Step 5: Calculate confidence score
     confidence = calculate_confidence(

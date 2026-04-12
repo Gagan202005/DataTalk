@@ -7,7 +7,6 @@ import { ChevronDown, ChevronUp, Copy, Check, Code2 } from 'lucide-react';
 function detectLanguage(code, language) {
   if (language) return language.toLowerCase();
   // Simple heuristics
-  const upper = code.toUpperCase();
   if (/^\s*(SELECT|INSERT|UPDATE|DELETE|CREATE|ALTER|DROP|WITH)\b/i.test(code.trim())) return 'sql';
   if (/^\s*(import |from |def |class |print\(|if __name__)/m.test(code)) return 'python';
   if (/^\s*(const |let |var |function |=>|import )/m.test(code)) return 'javascript';
