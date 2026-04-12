@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { PanelLeftClose, PanelLeft, Database } from 'lucide-react';
 import FileUpload from './components/FileUpload';
+import DataPreprocessingWizard from './components/DataPreprocessingWizard';
 import ChatMessage from './components/ChatMessage';
 import ChatInput from './components/ChatInput';
 import WelcomeScreen from './components/WelcomeScreen';
@@ -84,11 +85,11 @@ export default function App() {
         {/* Messages */}
         <div className="messages-viewport">
           <div className="messages-inner">
-            {!hasMessages && !showUpload && (
+            {!hasMessages && !showUpload && !chat.preprocessResult && (
               <WelcomeScreen onAction={handleSuggestionClick} hasDataset={!!chat.fileInfo} />
             )}
 
-            {showUpload && (
+            {showUpload && !chat.preprocessResult && (
               <div style={{ maxWidth: 480, margin: '32px auto' }}>
                 <FileUpload
                   onFileLoaded={(file) => {
@@ -98,6 +99,20 @@ export default function App() {
                   disabled={chat.isLoading}
                 />
               </div>
+            )}
+
+            {chat.preprocessResult && (
+              <DataPreprocessingWizard
+                detectResult={chat.preprocessResult}
+                onComplete={(result) => {
+                  setShowUpload(false);
+                  chat.finalizeUpload(result);
+                }}
+                onSkip={() => {
+                  setShowUpload(false);
+                  chat.skipPreprocessing();
+                }}
+              />
             )}
 
             {chat.messages.map((msg) => (

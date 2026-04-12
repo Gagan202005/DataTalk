@@ -20,7 +20,7 @@ if sys.stderr and hasattr(sys.stderr, "buffer"):
 load_dotenv()
 
 # Import routes
-from app.routes import upload, chat, semantic, export
+from app.routes import upload, chat, semantic, export, preprocess
 
 # In-memory session store (metadata only — actual data is in .duckdb files)
 sessions = {}
@@ -67,6 +67,7 @@ app.add_middleware(
 
 # Mount routes
 app.include_router(upload.router, prefix="/api")
+app.include_router(preprocess.router, prefix="/api")
 app.include_router(chat.router, prefix="/api")
 app.include_router(semantic.router, prefix="/api")
 app.include_router(export.router, prefix="/api")

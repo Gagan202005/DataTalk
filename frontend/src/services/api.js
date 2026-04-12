@@ -61,4 +61,13 @@ export const api = {
     link.remove();
     window.URL.revokeObjectURL(url);
   },
+
+  // Apply user-approved preprocessing fixes
+  applyPreprocessing: async (sessionId, approvedStepIds) => {
+    const response = await axios.post(`${API_BASE}/preprocess/apply`, {
+      session_id: sessionId,
+      approved_step_ids: approvedStepIds,
+    });
+    return response.data;
+  },
 };

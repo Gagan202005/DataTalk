@@ -44,53 +44,91 @@ export function useChat() {
   const [semanticLayer, setSemanticLayer] = useState([]);
   const [sensitiveColumns, setSensitiveColumns] = useState([]);
   const [anomalies, setAnomalies] = useState([]);
+  const [preprocessResult, setPreprocessResult] = useState(null);
   const messagesEndRef = useRef(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  const _finishUpload = useCallback((data, file, uploadedAnomalies, report = null) => {
+    setSessionId(data.session_id);
+    setFileInfo({ name: file.name, rows: data.row_count, columns: data.column_count });
+    setSchema(data.schema);
+    setDataQuality(data.data_quality);
+    if (data.suggested_metrics) {
+      setSemanticLayer(data.suggested_metrics);
+    }
+    setAnomalies(uploadedAnomalies);
+
+    // Build system message content
+    let systemContent = `📊 Loaded **${file.name}** — ${data.row_count.toLocaleString()} rows, ${data.column_count} columns. Data quality: ${data.data_quality?.overall_score ?? 'N/A'}%`;
+    if (uploadedAnomalies.length > 0) {
+      systemContent += `\n\n🚨 **${uploadedAnomalies.length} anomaly${uploadedAnomalies.length > 1 ? ' groups' : ''} detected in your data:**\n` +
+        uploadedAnomalies.map(a => `• ${a.message}`).join('\n');
+    }
+
+    const starterQuestions = generateStarterQuestions(data.schema);
+
+    setMessages([{
+      id: Date.now(),
+      role: 'system',
+      content: systemContent,
+      timestamp: new Date().toISOString(),
+      schema: data.schema,
+      dataQuality: data.data_quality,
+      anomalies: uploadedAnomalies,
+      preprocessing_report: report,
+      starterQuestions,
+    }]);
+  }, []);
+
   // Handle file upload
   const handleUpload = useCallback(async (file) => {
     setIsLoading(true);
     setError(null);
     try {
+      // Phase 1: Upload and detect issues
       const data = await api.uploadFile(file);
-      setSessionId(data.session_id);
-      setFileInfo({ name: file.name, rows: data.row_count, columns: data.column_count });
-      setSchema(data.schema);
-      setDataQuality(data.data_quality);
-      if (data.suggested_metrics) {
-        setSemanticLayer(data.suggested_metrics);
-      }
-      const uploadedAnomalies = data.anomalies || [];
-      setAnomalies(uploadedAnomalies);
-
-      // Build system message content — include anomalies for chat + PDF
-      let systemContent = `📊 Loaded **${file.name}** — ${data.row_count.toLocaleString()} rows, ${data.column_count} columns. Data quality: ${data.data_quality.overall_score}%`;
-      if (uploadedAnomalies.length > 0) {
-        systemContent += `\n\n🚨 **${uploadedAnomalies.length} anomaly${uploadedAnomalies.length > 1 ? ' groups' : ''} detected in your data:**\n` +
-          uploadedAnomalies.map(a => `• ${a.message}`).join('\n');
-      }
-
-      const starterQuestions = generateStarterQuestions(data.schema);
-
-      setMessages([{
-        id: Date.now(),
-        role: 'system',
-        content: systemContent,
-        timestamp: new Date().toISOString(),
-        schema: data.schema,
-        dataQuality: data.data_quality,
-        anomalies: uploadedAnomalies,
-        starterQuestions,
-      }]);
+      // Wait for wizard instead of finishing upload
+      setPreprocessResult({ ...data, _file: file });
     } catch (err) {
       setError(err.response?.data?.detail || 'Failed to upload file. Please try a valid CSV or Excel file.');
     } finally {
       setIsLoading(false);
     }
   }, []);
+
+  const finalizeUpload = useCallback((preprocessApplyResult) => {
+    const file = preprocessResult._file;
+    const anomalies = preprocessApplyResult.anomalies || [];
+    const report = {
+      auto_fixes: preprocessResult.auto_fixes || [],
+      applied_fixes: preprocessApplyResult.preprocessing_report || []
+    };
+    _finishUpload(preprocessApplyResult, file, anomalies, report);
+    setPreprocessResult(null);
+  }, [preprocessResult, _finishUpload]);
+
+  const skipPreprocessing = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      // Pass an empty array of approved steps to proceed with original (plus auto-fixes)
+      const data = await api.applyPreprocessing(preprocessResult.temp_id, []);
+      const file = preprocessResult._file;
+      const report = {
+        auto_fixes: preprocessResult.auto_fixes || [],
+        applied_fixes: []
+      };
+      _finishUpload(data, file, data.anomalies || [], report);
+      setPreprocessResult(null);
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Failed to skip preprocessing.');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [preprocessResult, _finishUpload]);
 
   // Send a question
   const sendMessage = useCallback(async (question) => {
@@ -161,14 +199,16 @@ export function useChat() {
     setSemanticLayer([]);
     setSensitiveColumns([]);
     setAnomalies([]);
+    setPreprocessResult(null);
   }, []);
 
   return {
     messages, sessionId, fileInfo, schema, dataQuality,
     isLoading, error, semanticLayer, messagesEndRef,
     sensitiveColumns, setSensitiveColumns,
-    anomalies,
-    handleUpload, sendMessage, exportPDF, resetChat,
+    anomalies, preprocessResult,
+    handleUpload, finalizeUpload, skipPreprocessing,
+    sendMessage, exportPDF, resetChat,
     setSemanticLayer, setError,
   };
 }
