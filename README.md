@@ -80,6 +80,12 @@ sequenceDiagram
 ```
 
 ---
+## Demo Video
+
+https://github.com/user-attachments/assets/936c42e9-4a5b-4fc3-8b03-3b8ef8cbb8db
+
+---
+
 
 ## Security by Design
 
