@@ -11,7 +11,7 @@ The system is built on three pillars from the NatWest problem statement: **Clari
 ## System Architecture
 
 ### High-Level Design (HLD)
-
+```mermaid
 graph LR
     U([👤 User]) --> FE["React\nFrontend"]
     FE -->|REST API| BE["FastAPI\nBackend"]
@@ -35,7 +35,7 @@ graph LR
     style DB fill:#7c2d12,color:#fff,stroke:#f97316
     style FS fill:#581c87,color:#fff,stroke:#a855f7
     style O fill:#1e293b,color:#fff,stroke:#64748b
-
+```
 ### Request Flow (LLD — Sequence Diagram)
 
 ```mermaid
