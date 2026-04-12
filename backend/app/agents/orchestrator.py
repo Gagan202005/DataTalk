@@ -38,6 +38,29 @@ Respond with ONLY a JSON object:
 """
 
 
+def _get_combined_schema(session: dict) -> list:
+    """Return flat list of all columns across all tables (with table field added)."""
+    combined = []
+    for table_name, meta in session.get("tables", {}).items():
+        for col in meta.get("schema", []):
+            combined.append({**col, "table": table_name})
+    return combined
+
+
+def _get_primary_df(session: dict):
+    """Return the first table's DataFrame (used by code_agent)."""
+    tables = session.get("tables", {})
+    if not tables:
+        return None
+    return next(iter(tables.values()))["df"]
+
+
+def _get_total_rows(session: dict) -> int:
+    """Sum row counts across all tables."""
+    tables = session.get("tables", {})
+    return sum(meta.get("df") is not None and len(meta["df"]) or 0 for meta in tables.values())
+
+
 async def process_question(
     question: str,
     session: dict,
@@ -48,17 +71,18 @@ async def process_question(
 
     Args:
         question: User's natural language question.
-        session: Session dict with db, df, schema, semantic_layer.
+        session: Session dict with db, tables, semantic_layer.
         options: Optional settings (include_chart, include_web_search).
 
     Returns:
         Complete response dict matching the API contract.
     """
-    schema = session["schema"]
+    schema = _get_combined_schema(session)
     semantic_layer = session.get("semantic_layer")
     include_chart = options.get("include_chart", True)
     include_web = options.get("include_web_search", True)
     sensitive_columns = options.get("sensitive_columns", [])
+    total_rows = _get_total_rows(session)
 
     # Step 1: Classify the question
     classification = await _classify_question(question, schema, semantic_layer)
@@ -66,7 +90,6 @@ async def process_question(
     needs_web = classification.get("needs_web_context", False) and include_web
 
     # Hard override: keyword-based routing that always wins over LLM classification.
-    # Prevents common misrouting of statistical questions to sql_agent.
     q_lower = question.lower()
     STATISTICAL_KEYWORDS = [
         "correlation", "heatmap", "distribution", "histogram",
@@ -85,7 +108,6 @@ async def process_question(
         result = await _handle_general(question, schema)
 
     elif category in ("sql_query", "visualization"):
-        # SQL Agent
         sql_result = await run_sql_agent(
             question=question,
             session=session,
@@ -100,20 +122,22 @@ async def process_question(
             "data": sql_result.get("data", []),
             "columns_used": sql_result.get("columns_used", []),
             "row_count": sql_result.get("row_count", 0),
-            "total_rows": sql_result.get("total_rows", 0),
+            "total_rows": sql_result.get("total_rows", total_rows),
             "error": sql_result.get("error"),
         }
 
-        # If chart data exists, cap it at 50 data points for frontend
         if result["chart"] and sql_result.get("data"):
             result["chart"]["data"] = sql_result["data"][:50]
 
     elif category == "statistical_analysis":
-        # Code Agent
+        # Inject primary df into session for code_agent compatibility
+        primary_df = _get_primary_df(session)
+        session_with_df = {**session, "df": primary_df}
         code_result = await run_code_agent(
             question=question,
-            session=session,
+            session=session_with_df,
         )
+        primary_len = len(primary_df) if primary_df is not None else 0
         result = {
             "agent_used": "code_agent",
             "sql_query": None,
@@ -124,16 +148,16 @@ async def process_question(
                 if code_result.get("matplotlib_images")
                 else None
             ),
+            "matplotlib_images": code_result.get("matplotlib_images", []),
             "data": [],
             "columns_used": [],
-            "row_count": len(session["df"]),
-            "total_rows": len(session["df"]),
+            "row_count": primary_len,
+            "total_rows": total_rows,
             "error": code_result.get("error"),
             "stdout": code_result.get("stdout", ""),
         }
 
     elif category == "web_search":
-        # Search Agent only
         search_query = classification.get("search_query") or build_search_query(question)
         search_result = await run_search_agent(query=search_query)
         result = {
@@ -145,12 +169,11 @@ async def process_question(
             "data": [],
             "columns_used": [],
             "row_count": 0,
-            "total_rows": len(session.get("df", [])),
+            "total_rows": total_rows,
             "web_results": search_result.get("results", []),
         }
 
     else:
-        # Unknown category — fall back to SQL agent
         sql_result = await run_sql_agent(question=question, session=session, include_chart=include_chart)
         result = {
             "agent_used": "sql_agent",
@@ -161,11 +184,11 @@ async def process_question(
             "data": sql_result.get("data", []),
             "columns_used": sql_result.get("columns_used", []),
             "row_count": sql_result.get("row_count", 0),
-            "total_rows": sql_result.get("total_rows", 0),
+            "total_rows": sql_result.get("total_rows", total_rows),
             "error": sql_result.get("error"),
         }
 
-    # Step 3: Fetch web context (if needed and not already a web search)
+    # Step 3: Fetch web context
     web_results = result.get("web_results", [])
     if needs_web and category != "web_search":
         try:
@@ -209,17 +232,16 @@ async def process_question(
                 f"I analyzed your question but couldn't generate a summary. Error: {str(e)}",
             )
 
-    # For general questions, use the pre-built answer
     if category == "general" and result.get("answer"):
         answer = result["answer"]
 
-    # Step 4b: Generate follow-up suggestions (skip on error to avoid wasted API calls)
+    # Step 4b: Follow-up suggestions
     if result.get("error"):
         suggestions = []
     else:
         suggestions = await _suggest_followups(question, answer, schema)
 
-    # Step 5: Calculate confidence score
+    # Step 5: Confidence score
     confidence = calculate_confidence(
         rows_used=result.get("row_count", 0),
         total_rows=result.get("total_rows", 0),
@@ -230,7 +252,7 @@ async def process_question(
         sql_error=result.get("error"),
     )
 
-    # Step 6: Build sources list
+    # Step 6: Sources
     sources = []
     if result.get("columns_used"):
         sources.append({
@@ -245,7 +267,6 @@ async def process_question(
                 "url": wr.get("url", ""),
             })
 
-    # Step 7: Assemble final response (matches the API contract exactly)
     return {
         "answer": answer,
         "agent_used": result.get("agent_used", "unknown"),
@@ -253,17 +274,18 @@ async def process_question(
         "python_code": result.get("python_code"),
         "chart": result.get("chart"),
         "matplotlib_image": result.get("matplotlib_image"),
-        "data": result.get("data", []),          # Raw rows — shown in table for sensitive queries
+        "matplotlib_images": result.get("matplotlib_images"),
+        "data": result.get("data", []),
         "confidence": confidence,
         "sources": sources,
-        "suggestions": suggestions,              # Follow-up question chips
+        "suggestions": suggestions,
         "from_cache": False,
     }
 
 
 async def _suggest_followups(question: str, answer: str, schema: list) -> list[str]:
     """Generate 3 follow-up questions based on the current Q&A and schema."""
-    col_names = ", ".join(s["name"] for s in schema[:20])
+    col_names = ", ".join(f"{s.get('table','')}.{s['name']}" for s in schema[:20])
     prompt = (
         f"A user asked: \"{question}\"\n"
         f"The answer was: \"{answer[:300]}\"\n"
@@ -283,7 +305,7 @@ async def _suggest_followups(question: str, answer: str, schema: list) -> list[s
 async def _classify_question(question: str, schema: list, semantic_layer) -> dict:
     """Classify the user's question to determine which agent to use."""
     schema_summary = json.dumps(
-        [{"name": s["name"], "type": s["type"]} for s in schema],
+        [{"name": s["name"], "type": s["type"], "table": s.get("table", "")} for s in schema],
         indent=2,
     )
     semantic_str = semantic_layer.to_json() if semantic_layer else "None"
@@ -301,7 +323,6 @@ async def _classify_question(question: str, schema: list, semantic_layer) -> dic
         )
         return result
     except Exception:
-        # Default to sql_query if classification fails
         return {"category": "sql_query", "needs_web_context": False, "search_query": None}
 
 
@@ -309,7 +330,6 @@ async def _handle_general(question: str, schema: list) -> dict:
     """Handle general/meta questions without calling any agent."""
     question_lower = question.lower().strip()
 
-    # Keywords that indicate the user wants to understand the dataset
     dataset_description_keywords = [
         "about", "describe", "overview", "summary", "tell me", "what is this",
         "what kind", "what type", "what does", "what data", "what columns",
@@ -328,7 +348,6 @@ async def _handle_general(question: str, schema: list) -> dict:
         bool_cols   = [s for s in schema if s["type"] == "BOOLEAN"]
         bad_cols    = [s for s in schema if s.get("missing_pct", 0) > 20]
 
-        # ── Column groups (human-readable labels, not raw type names) ──
         groups = []
         if text_cols:
             groups.append(f"**Labels & categories** — {', '.join(c['name'] for c in text_cols[:6])}"
@@ -343,7 +362,6 @@ async def _handle_general(question: str, schema: list) -> dict:
 
         groups_md = "\n".join(f"- {g}" for g in groups)
 
-        # ── Data quality warnings (only columns with >20% missing) ──
         quality_md = ""
         if bad_cols:
             quality_md = "\n\n**Data quality heads-up:**\n" + "\n".join(
@@ -351,7 +369,6 @@ async def _handle_general(question: str, schema: list) -> dict:
                 for c in bad_cols[:4]
             )
 
-        # ── Smart example questions ──
         examples = []
         if numeric_cols and text_cols:
             examples.append(f'"What is the total {numeric_cols[0]["name"]} by {text_cols[0]["name"]}?"')
@@ -368,10 +385,25 @@ async def _handle_general(question: str, schema: list) -> dict:
 
         greeting = "Hello! I'm DataTalk — ask me anything about your data.\n\n" if is_greeting else ""
 
+        # Group columns by table for the overview
+        from collections import defaultdict
+        by_table = defaultdict(list)
+        for col in schema:
+            by_table[col.get("table", "")].append(col["name"])
+
+        table_summary = ""
+        if len(by_table) > 1:
+            table_lines = "\n".join(
+                f"- **{t}**: {', '.join(cols[:5])}" + (f" + {len(cols)-5} more" if len(cols) > 5 else "")
+                for t, cols in by_table.items()
+            )
+            table_summary = f"\n\n**Loaded tables:**\n{table_lines}"
+
         answer = (
             f"{greeting}"
             f"## Your dataset at a glance\n\n"
-            f"It contains **{len(schema)} columns** of information:\n\n"
+            f"It contains **{len(schema)} columns** of information:"
+            f"{table_summary}\n\n"
             f"{groups_md}"
             f"{quality_md}\n\n"
             f"---\n\n"

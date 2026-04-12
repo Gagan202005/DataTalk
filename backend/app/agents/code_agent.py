@@ -50,7 +50,16 @@ async def run_code_agent(
         Dict with python_code, stdout, matplotlib_images, error.
     """
     df = session["df"]
-    schema = session["schema"]
+
+    # Build schema from tables dict if available, else fall back to injected df schema
+    tables = session.get("tables", {})
+    if tables:
+        schema = []
+        for tname, meta in tables.items():
+            for col in meta.get("schema", []):
+                schema.append({**col, "table": tname})
+    else:
+        schema = session.get("schema", [])
 
     schema_str = json.dumps(schema, indent=2)
     system_prompt = CODE_SYSTEM_PROMPT.format(schema=schema_str)

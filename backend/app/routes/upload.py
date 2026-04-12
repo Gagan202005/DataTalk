@@ -3,7 +3,8 @@ POST /api/upload — File upload endpoint.
 Parses CSV/Excel/JSON, loads into DuckDB, returns schema and data quality info.
 """
 import uuid
-from fastapi import APIRouter, UploadFile, File, HTTPException, Request
+from typing import Optional
+from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Request
 
 from app.core.file_handler import parse_upload
 from app.core.preprocessor import detect_issues
@@ -12,23 +13,38 @@ router = APIRouter()
 
 
 @router.post("/upload")
-async def upload_file(request: Request, file: UploadFile = File(...)):
-    """Upload a data file and run phase 1 preprocessing."""
+async def upload_file(
+    request: Request,
+    file: UploadFile = File(...),
+    session_id: Optional[str] = Form(default=None),
+):
+    """Upload a data file and run phase 1 preprocessing.
+
+    If session_id is provided and the session exists, the new file is queued
+    for preprocessing into that existing session (multi-table flow).
+    Otherwise a fresh session is created.
+    """
     try:
         # Parse the file into a DataFrame
         df = await parse_upload(file)
 
-        # Create session ID
-        session_id = str(uuid.uuid4())
-
         # Phase 1: Auto-fixes and issue detection
         df, auto_results, medium_issues = detect_issues(df)
 
-        # Temporarily store session data (Wait for /apply to initialize DuckDB)
-        request.app.state.sessions[session_id] = {
-            "df_preprocessed": df,
-            "filename": file.filename,
-        }
+        sessions = request.app.state.sessions
+
+        # Reuse existing session if provided and valid, otherwise create new
+        if session_id and session_id in sessions:
+            # Add pending file to existing session (one at a time — wizard enforces this)
+            sessions[session_id]["df_preprocessed"] = df
+            sessions[session_id]["pending_filename"] = file.filename
+        else:
+            # New session
+            session_id = str(uuid.uuid4())
+            sessions[session_id] = {
+                "df_preprocessed": df,
+                "filename": file.filename,
+            }
 
         return {
             "temp_id": session_id,
