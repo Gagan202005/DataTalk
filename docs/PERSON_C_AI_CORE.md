@@ -1414,15 +1414,15 @@ Run: `cd backend && python test_agents_standalone.py`
 
 | Hours | What to Build | Done? |
 |---|---|---|
-| 0-1 | Get Gemini API key. Test `gemini_client.py`. Verify API works. | ☐ |
-| 1-3 | `sql_agent.py` — full NL→SQL→Execute pipeline with retry | ☐ |
-| 3-4 | `code_sandbox.py` — safe Python execution with matplotlib capture | ☐ |
-| 4-5 | `code_agent.py` — Python code generation + execution | ☐ |
-| 5-6 | `search_agent.py` + `explain_agent.py` | ☐ |
-| 6-7 | `confidence.py` — confidence score calculator | ☐ |
-| 7-9 | `orchestrator.py` — full routing + assembly + test all flows | ☐ |
-| 9-10 | Test with Person B's backend. Fix integration issues. | ☐ |
-| 10-12 | Prompt tuning. Edge case handling. Demo dataset verification. | ☐ |
+| 0-1 | Get Gemini API key. Test `gemini_client.py`. Verify API works. | ✅ |
+| 1-3 | `sql_agent.py` — full NL→SQL→Execute pipeline with retry | ✅ |
+| 3-4 | `code_sandbox.py` — safe Python execution with matplotlib capture | ✅ |
+| 4-5 | `code_agent.py` — Python code generation + execution | ✅ |
+| 5-6 | `search_agent.py` + `explain_agent.py` | ✅ |
+| 6-7 | `confidence.py` — confidence score calculator | ✅ |
+| 7-9 | `orchestrator.py` — full routing + assembly + test all flows | ✅ |
+| 9-10 | Test with Person B's backend. Fix integration issues. | ✅ |
+| 10-12 | Prompt tuning. Edge case handling. Demo dataset verification. | ✅ |
 
 ---
 

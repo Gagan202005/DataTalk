@@ -5,18 +5,28 @@ __pycache__/
 venv/
 .env
 *.egg-info/
-dist/
 build/
 
 # Node
 node_modules/
 .cache/
+dist/
+
+# Env & Deps
+.env
+venv/
+.venv/
+backend/.venv_deps/
+backend/sessions/
+backend/uploads/
+.python-version
+.venv
+*.swp
+*.swo
 
 # IDE
 .vscode/
 .idea/
-*.swp
-*.swo
 
 # OS
 .DS_Store

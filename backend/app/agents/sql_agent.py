@@ -213,6 +213,6 @@ def _extract_columns_from_sql(sql: str, schema: list) -> list[str]:
     used = []
     for col_info in schema:
         col_name = col_info["name"].lower()
-        if col_name in sql_lower:
+        if re.search(rf"\b{re.escape(col_name)}\b", sql_lower):
             used.append(col_info["name"])
     return used

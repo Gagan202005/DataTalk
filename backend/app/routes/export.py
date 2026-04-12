@@ -5,13 +5,26 @@ import io
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
+from typing import Optional, List, Dict, Any
 
 router = APIRouter()
 
+class TemplateInfo(BaseModel):
+    author: Optional[str] = None
+    company: Optional[str] = None
+    date: Optional[str] = None
+    executive_summary: Optional[str] = None
+
+class Attachment(BaseModel):
+    message_index: Optional[int] = None
+    data: str  # Base64 string
+    content_type: str = "image/png"
 
 class ExportRequest(BaseModel):
     session_id: str
-    messages: list[dict]
+    messages: List[Dict[str, Any]]
+    template_info: Optional[TemplateInfo] = None
+    attachments: Optional[List[Attachment]] = None
 
 
 @router.post("/export-pdf")
@@ -25,11 +38,17 @@ async def export_pdf(request: Request, body: ExportRequest):
         from app.utils.pdf_generator import generate_pdf_report
 
         session = sessions[body.session_id]
+        
+        template_info_dict = body.template_info.model_dump() if body.template_info else None
+        attachments_list = [att.model_dump() for att in body.attachments] if body.attachments else None
+
         pdf_bytes = generate_pdf_report(
             messages=body.messages,
             filename=session.get("filename", "Unknown"),
             schema=session.get("schema", []),
             semantic_layer=session.get("semantic_layer"),
+            template_info=template_info_dict,
+            attachments=attachments_list,
         )
 
         return StreamingResponse(

@@ -20,8 +20,64 @@ export default function ChatMessage({ message, onSendMessage }) {
   if (isSystem) {
     return (
       <div className="flex justify-center mb-5 animate-fade-in-up">
-        <div className="glass-card px-5 py-3 max-w-[80%] text-center">
+        <div className="glass-card px-5 py-4 max-w-[85%] text-center space-y-3">
           <MarkdownContent content={message.content} />
+
+          {/* 1. Anomaly Detection Box — TOP */}
+          {message.anomalies && message.anomalies.length > 0 && (
+            <div className="mt-3 rounded-xl border border-[#f59e0b]/30 bg-[#f59e0b]/6 p-4 text-left">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-base">🚨</span>
+                <span className="text-[12px] font-bold text-[#f59e0b] uppercase tracking-wide">
+                  {message.anomalies.length} Anomaly Group{message.anomalies.length > 1 ? 's' : ''} Detected
+                </span>
+              </div>
+              <div className="space-y-2 mb-3">
+                {message.anomalies.map((a, i) => (
+                  <div key={i} className="flex items-center justify-between gap-3 bg-[#f59e0b]/8 rounded-lg px-3 py-2">
+                    <span className="text-[11px] text-[#fcd34d]">{a.message}</span>
+                    <span className="flex-shrink-0 text-[10px] font-bold text-[#f59e0b] bg-[#f59e0b]/15 px-2 py-0.5 rounded-full">
+                      {a.count} rows
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {message.anomalies.map((a, i) => (
+                  <button
+                    key={i}
+                    onClick={() => onSendMessage && onSendMessage(`Show me the suspicious values in the '${a.column}' column`)}
+                    className="px-3 py-1.5 rounded-full text-[11px] font-semibold bg-[#f59e0b]/15 text-[#f59e0b] border border-[#f59e0b]/30 hover:bg-[#f59e0b]/30 transition-all duration-200"
+                  >
+                    🔍 Investigate {a.column}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* 2. Starter Questions — MIDDLE, 2 per row, bigger */}
+          {message.starterQuestions && message.starterQuestions.length > 0 && (
+            <div className="mt-3 rounded-xl border border-[#8b5cf6]/25 bg-[#8b5cf6]/6 p-4 text-left">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-base">💡</span>
+                <span className="text-[12px] font-bold text-[#a78bfa] uppercase tracking-wide">
+                  Try asking these to get started
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                {message.starterQuestions.map((q, i) => (
+                  <button
+                    key={i}
+                    onClick={() => onSendMessage && onSendMessage(q)}
+                    className="text-left px-4 py-3 rounded-xl text-[12px] font-medium text-[#c4b5fd] bg-[#8b5cf6]/10 border border-[#8b5cf6]/25 hover:bg-[#8b5cf6]/25 hover:border-[#8b5cf6]/50 transition-all duration-200 leading-snug"
+                  >
+                    <span className="text-[#8b5cf6] mr-1.5">▶</span>{q}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -108,14 +164,14 @@ export default function ChatMessage({ message, onSendMessage }) {
               <MarkdownContent content={message.content} />
             </div>
 
+            {/* Raw data table (shown when summary is blocked for sensitive data) */}
+            {message.data && message.data.length > 0 && (
+              <DataTable data={message.data} />
+            )}
+
             {/* SQL Query (collapsible) */}
             {message.sql_query && (
               <CodeBlock code={message.sql_query} language="sql" title="SQL Query" />
-            )}
-
-            {/* Python Code (collapsible) */}
-            {message.python_code && (
-              <CodeBlock code={message.python_code} language="python" title="Python Code" />
             )}
 
             {/* Chart */}
@@ -162,6 +218,24 @@ export default function ChatMessage({ message, onSendMessage }) {
                     </span>
                   );
                 })}
+              </div>
+            )}
+
+            {/* Follow-up suggestions — clicking auto-submits the question */}
+            {message.suggestions && message.suggestions.length > 0 && (
+              <div className="mt-4 pt-3 border-t border-[rgba(255,255,255,0.05)]">
+                <p className="text-[10px] font-semibold text-[#64748b] mb-2">💡 You might also ask:</p>
+                <div className="flex flex-wrap gap-2">
+                  {message.suggestions.map((s, i) => (
+                    <button
+                      key={i}
+                      onClick={() => onSendMessage && onSendMessage(s)}
+                      className="px-3 py-1.5 rounded-full text-[11px] font-medium bg-[#8b5cf6]/8 text-[#a78bfa] border border-[#8b5cf6]/20 hover:bg-[#8b5cf6]/20 hover:border-[#8b5cf6]/40 transition-all duration-200 text-left"
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
           </div>
@@ -212,5 +286,44 @@ function MarkdownContent({ content }) {
     >
       {content}
     </ReactMarkdown>
+  );
+}
+
+/* ──── Raw Data Table ──── */
+function DataTable({ data }) {
+  if (!data || data.length === 0) return null;
+  const headers = Object.keys(data[0]);
+  return (
+    <div className="mt-3 overflow-x-auto rounded-lg border border-[#2a2a4a]/50">
+      <table className="w-full text-[11px] border-collapse">
+        <thead>
+          <tr className="bg-[#1a1a2e]">
+            {headers.map(h => (
+              <th key={h} className="px-3 py-2 text-left text-[#a0a0c0] font-semibold border-b border-[#2a2a4a]/50 whitespace-nowrap">
+                {h}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {data.slice(0, 100).map((row, i) => (
+            <tr key={i} className={i % 2 === 0 ? 'bg-[#0f0f1e]/60' : 'bg-[#16162a]/40'}>
+              {headers.map(h => (
+                <td key={h} className="px-3 py-1.5 text-[#c8c8e0] border-b border-[#2a2a4a]/30 whitespace-nowrap">
+                  {row[h] === null || row[h] === undefined
+                    ? <span className="text-[#4a4a6a] italic">null</span>
+                    : String(row[h])}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {data.length > 100 && (
+        <p className="text-[10px] text-[#6a6a8a] text-center py-1.5 border-t border-[#2a2a4a]/30">
+          Showing 100 of {data.length} rows
+        </p>
+      )}
+    </div>
   );
 }

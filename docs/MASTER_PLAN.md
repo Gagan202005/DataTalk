@@ -294,23 +294,23 @@ Natwest_Project/
 
 ### Day 1 — Core Foundation
 
-| Time | Person A (Frontend) | Person B (Backend API) | Person C (AI Core) |
-|---|---|---|---|
-| **Hour 1-2** | Scaffold Vite+React+Tailwind. Create App shell, dark theme, layout grid. | Scaffold FastAPI. Create `main.py`, CORS, session store, folder structure. | Set up Gemini client. Test basic prompt. Create `.env.example`. |
-| **Hour 3-4** | Build `FileUpload.jsx` (drag & drop). Build `DataPreview.jsx`. | Build `POST /api/upload`: file parsing (CSV/Excel/JSON), SQLite loading, schema extraction. | Build `sql_agent.py`: NL→SQL→Execute pipeline with retry logic. |
-| **Hour 5-6** | Build `ChatInterface.jsx` + `MessageBubble.jsx`. Wire to `/api/chat`. | Build `POST /api/chat`: receive question, call orchestrator, return structured response. | Build `orchestrator.py`: classify intent, route to correct agent. |
-| **Hour 7-8** | Build `ChartRenderer.jsx` (Recharts bar/line/pie). Build `CodeBlock.jsx`. | Integration testing with Person C. Fix API response formats. | Build `code_agent.py`: Python code generation + sandboxed execution + matplotlib capture. |
-| **EOD 1** | ✅ Can upload file, ask questions, see answers + charts | ✅ All endpoints working, data flows end-to-end | ✅ SQL + Code agents working, orchestrator routing |
+| Time | Person A (Frontend) | Person B (Backend API) | Person C (AI Core) | Status |
+|---|---|---|---|---|
+| **Hour 1-2** | Scaffold Vite+React+Tailwind. Create App shell, dark theme, layout grid. | Scaffold FastAPI. Create `main.py`, CORS, session store, folder structure. | Set up Gemini client. Test basic prompt. Create `.env.example`. | ✅ |
+| **Hour 3-4** | Build `FileUpload.jsx` (drag & drop). Build `DataPreview.jsx`. | Build `POST /api/upload`: file parsing (CSV/Excel/JSON), SQLite loading, schema extraction. | Build `sql_agent.py`: NL→SQL→Execute pipeline with retry logic. | ✅ |
+| **Hour 5-6** | Build `ChatInterface.jsx` + `MessageBubble.jsx`. Wire to `/api/chat`. | Build `POST /api/chat`: receive question, call orchestrator, return structured response. | Build `orchestrator.py`: classify intent, route to correct agent. | ✅ |
+| **Hour 7-8** | Build `ChartRenderer.jsx` (Recharts bar/line/pie). Build `CodeBlock.jsx`. | Integration testing with Person C. Fix API response formats. | Build `code_agent.py`: Python code generation + sandboxed execution + matplotlib capture. | ✅ |
+| **EOD 1** | ✅ Can upload file, ask questions, see answers + charts | ✅ All endpoints working, data flows end-to-end | ✅ SQL + Code agents working, orchestrator routing | DONE |
 
 ### Day 2 — Differentiators + Polish
 
-| Time | Person A (Frontend) | Person B (Backend API) | Person C (AI Core) |
-|---|---|---|---|
-| **Hour 1-2** | Build `ConfidenceScore.jsx`. Build `Sidebar.jsx` with file info + privacy badge. | Build `POST /api/export-pdf` with ReportLab. | Build `search_agent.py` (DuckDuckGo). Build `explain_agent.py` with citations. |
-| **Hour 3-4** | Build `SemanticLayerEditor.jsx`. Add source citations to messages. | Build semantic layer CRUD endpoints. Create demo dataset. | Build `confidence.py` calculator. Integrate web search into explain agent. |
-| **Hour 5-6** | Polish: animations, loading skeletons, error states, responsive design. | Write `README.md`. Create `tests/`. Final API hardening. | Tune prompts. Handle edge cases (bad SQL, empty results, large schemas). |
-| **Hour 7-8** | End-to-end testing. Screenshot for README. | `.gitignore`, `.env.example`, submission checklist. | End-to-end testing with demo dataset. Prepare demo script. |
-| **EOD 2** | ✅ Beautiful, polished, fully functional UI | ✅ All endpoints, PDF, tests, docs complete | ✅ All agents working, confidence scores, web search |
+| Time | Person A (Frontend) | Person B (Backend API) | Person C (AI Core) | Status |
+|---|---|---|---|---|
+| **Hour 1-2** | Build `ConfidenceScore.jsx`. Build `Sidebar.jsx` with file info + privacy badge. | Build `POST /api/export-pdf` with ReportLab. | Build `search_agent.py` (DuckDuckGo). Build `explain_agent.py` with citations. | ✅ |
+| **Hour 3-4** | Build `SemanticLayerEditor.jsx`. Add source citations to messages. | Build semantic layer CRUD endpoints. Create demo dataset. | Build `confidence.py` calculator. Integrate web search into explain agent. | ✅ |
+| **Hour 5-6** | Polish: animations, loading skeletons, error states, responsive design. | Write `README.md`. Create `tests/`. Final API hardening. | Tune prompts. Handle edge cases (bad SQL, empty results, large schemas). | ✅ |
+| **Hour 7-8** | End-to-end testing. Screenshot for README. | `.gitignore`, `.env.example`, submission checklist. | End-to-end testing with demo dataset. Prepare demo script. | ✅ |
+| **EOD 2** | ✅ Beautiful, polished, fully functional UI | ✅ All endpoints, PDF, tests, docs complete | ✅ All agents working, confidence scores, web search | DONE |
 
 ---
 
@@ -537,19 +537,19 @@ def calculate_confidence(
 
 | # | Item | Owner | Status |
 |---|---|---|---|
-| 1 | `README.md` with Overview, Features, Install, Tech Stack, Usage, Architecture | Person B | ⬜ |
-| 2 | All source files committed (no missing imports) | All | ⬜ |
-| 3 | `requirements.txt` (Python) + `package.json` (Node/React) | Person B + A | ⬜ |
-| 4 | `.env.example` (no real API keys) | Person B | ⬜ |
-| 5 | Clear folder structure: `/frontend`, `/backend` | All | ⬜ |
-| 6 | Only list WORKING features in README | Person B | ⬜ |
-| 7 | `git commit -s` (signed commits for DCO) | All | ⬜ |
-| 8 | Single email address for all commits | All | ⬜ |
-| 9 | Repository set to PRIVATE | Person B | ⬜ |
-| 10 | Architecture notes in README | Person B | ⬜ |
-| 11 | Limitations section — honest | Person B | ⬜ |
-| 12 | `tests/` directory with smoke tests | Person B | ⬜ |
-| 13 | Demo dataset included (`sample_data/`) | Person C | ⬜ |
+| 1 | `README.md` with Overview, Features, Install, Tech Stack, Usage, Architecture | Person B | ✅ |
+| 2 | All source files committed (no missing imports) | All | ✅ |
+| 3 | `requirements.txt` (Python) + `package.json` (Node/React) | Person B + A | ✅ |
+| 4 | `.env.example` (no real API keys) | Person B | ✅ |
+| 5 | Clear folder structure: `/frontend`, `/backend` | All | ✅ |
+| 6 | Only list WORKING features in README | Person B | ✅ |
+| 7 | `git commit -s` (signed commits for DCO) | All | ✅ |
+| 8 | Single email address for all commits | All | ✅ |
+| 9 | Repository set to PRIVATE | Person B | ✅ |
+| 10 | Architecture notes in README | Person B | ✅ |
+| 11 | Limitations section — honest | Person B | ✅ |
+| 12 | `tests/` directory with smoke tests | Person B | ✅ |
+| 13 | Demo dataset included (`sample_data/`) | Person C | ✅ |
 
 ---
 
@@ -591,12 +591,13 @@ cd frontend && npm run build
 
 ## ⚠️ Risk Mitigations
 
-| Risk | Mitigation |
-|---|---|
-| Gemini rate limit (10 RPM free tier) | Cache last 20 Q&A pairs. If same question, serve from cache with "cached" badge. |
-| Bad SQL from LLM | try/except → send error back to Gemini with "Fix this SQL: {error}" → max 2 retries → friendly fallback message |
-| Large CSV (100+ columns) | Only send top-10 relevant columns to LLM (pre-filter using keyword matching) |
-| matplotlib chart looks bad | Force dark_background style, set figsize=(10,6), DPI=150, consistent color palette |
-| Code execution unsafe | Whitelist imports, 30s timeout, no fs access, no network access, restricted builtins |
-| PDF generation fails on unicode | Sanitize all text, use UTF-8 encoded fonts, truncate answers > 500 chars |
-| Frontend-backend mismatch | API contract (above) is the single source of truth — both sides code to it |
+| Risk | Mitigation | Status |
+|---|---|---|
+| Gemini rate limit (10 RPM free tier) | Cache last 20 Q&A pairs. If same question, serve from cache with "cached" badge. | Implemented |
+| Bad SQL from LLM | try/except → send error back to Gemini with "Fix this SQL: {error}" → max 2 retries → friendly fallback message | Implemented |
+| Large CSV (100+ columns) | Only send top-10 relevant columns to LLM (pre-filter using keyword matching) | Implemented |
+| matplotlib chart looks bad | Force dark_background style, set figsize=(10,6), DPI=150, consistent color palette | Implemented |
+| Code execution unsafe | Whitelist imports, 30s timeout, no fs access, no network access, restricted builtins | Implemented |
+| PDF generation fails on unicode | Sanitize all text, use UTF-8 encoded fonts, truncate answers > 500 chars | Implemented |
+| Frontend-backend mismatch | API contract (above) is the single source of truth — both sides code to it | Implemented |
+| Python clutter | Generated Python code is **hidden** in frontend and PDF to keep UI clean for non-technical users. | Implemented |

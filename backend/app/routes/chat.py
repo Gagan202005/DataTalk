@@ -32,8 +32,10 @@ async def chat(request: Request, body: ChatRequest):
 
     session = sessions[body.session_id]
 
-    # Check Q&A cache per session (avoid duplicate LLM calls for identical questions)
-    cache_key = hashlib.md5(body.question.lower().strip().encode()).hexdigest()
+    # Check Q&A cache per session (avoid duplicate LLM calls)
+    import json
+    cache_str = body.question.lower().strip() + json.dumps(body.options, sort_keys=True)
+    cache_key = hashlib.md5(cache_str.encode()).hexdigest()
     cache = session.setdefault("cache", {})
     if cache_key in cache:
         cached = cache[cache_key].copy()

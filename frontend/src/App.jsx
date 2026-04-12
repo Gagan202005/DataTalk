@@ -36,6 +36,8 @@ function App() {
         onUpdateSemanticLayer={chat.setSemanticLayer}
         schema={chat.schema}
         dataQuality={chat.dataQuality}
+        sensitiveColumns={chat.sensitiveColumns}
+        onUpdateSensitiveColumns={chat.setSensitiveColumns}
       />
 
       {/* ──── Main ──── */}

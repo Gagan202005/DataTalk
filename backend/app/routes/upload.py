@@ -7,7 +7,7 @@ from fastapi import APIRouter, UploadFile, File, HTTPException, Request
 
 from app.core.file_handler import parse_upload
 from app.core.database import DatabaseManager
-from app.core.schema import extract_schema, assess_data_quality, suggest_metrics
+from app.core.schema import extract_schema, assess_data_quality, suggest_metrics, detect_anomalies
 from app.core.semantic_layer import SemanticLayerManager
 
 router = APIRouter()
@@ -31,6 +31,7 @@ async def upload_file(request: Request, file: UploadFile = File(...)):
         schema = extract_schema(df)
         quality = assess_data_quality(df)
         suggestions = suggest_metrics(df)
+        anomalies = detect_anomalies(df)
 
         # Create semantic layer with auto-suggested metrics
         semantic = SemanticLayerManager()
@@ -56,6 +57,7 @@ async def upload_file(request: Request, file: UploadFile = File(...)):
             "schema": schema,
             "data_quality": quality,
             "suggested_metrics": suggestions,
+            "anomalies": anomalies,
         }
 
     except ValueError as e:

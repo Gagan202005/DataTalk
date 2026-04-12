@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Plus, Trash2, Database, Sparkles, FileSpreadsheet, Download, Lock, Layers, Edit3 } from 'lucide-react';
 import SemanticLayerEditor from './SemanticLayerEditor';
 
-export default function Sidebar({ isOpen, fileData, onNewChat, onClearDataset, onExportPDF, semanticLayer, onUpdateSemanticLayer, sessionId, schema, dataQuality }) {
+export default function Sidebar({ isOpen, fileData, onNewChat, onClearDataset, onExportPDF, semanticLayer, onUpdateSemanticLayer, sessionId, schema, dataQuality, sensitiveColumns = [], onUpdateSensitiveColumns }) {
   const [showEditor, setShowEditor] = useState(false);
 
   const handleSaveSemanticLayer = async (metrics) => {
@@ -70,7 +70,6 @@ export default function Sidebar({ isOpen, fileData, onNewChat, onClearDataset, o
                 </div>
               </div>
 
-              {/* Data Quality */}
               <div className="anim-fade-in" style={{ animationDelay: '0.05s' }}>
                 <p className="text-[10px] font-bold text-[#6a6a8a] uppercase tracking-wider mb-2">Data Quality</p>
                 <div className="rounded-xl bg-[#16162a]/60 border border-[#2a2a4a]/30 p-3">
@@ -99,6 +98,42 @@ export default function Sidebar({ isOpen, fileData, onNewChat, onClearDataset, o
                       </>
                     );
                   })()}
+                </div>
+              </div>
+
+              {/* Sensitive Columns */}
+              <div className="anim-fade-in" style={{ animationDelay: '0.07s' }}>
+                <p className="text-[10px] font-bold text-[#6a6a8a] uppercase tracking-wider mb-2">Sensitive Data</p>
+                <div className="rounded-xl bg-[#16162a]/60 border border-[#2a2a4a]/30 p-3 max-h-32 overflow-y-auto custom-scrollbar">
+                  <p className="text-[9px] text-[#6a6a8a] mb-2 leading-relaxed">
+                    Click to mark columns as sensitive.
+                  </p>
+                  <div className="flex flex-wrap gap-1">
+                    {(schema || []).map(c => {
+                      const isSensitive = sensitiveColumns.includes(c.name);
+                      return (
+                        <button
+                          key={c.name}
+                          onClick={() => {
+                            if (onUpdateSensitiveColumns) {
+                              onUpdateSensitiveColumns(
+                                isSensitive 
+                                  ? sensitiveColumns.filter(name => name !== c.name)
+                                  : [...sensitiveColumns, c.name]
+                              )
+                            }
+                          }}
+                          className={`px-1.5 py-0.5 rounded text-[9px] font-medium transition-colors ${
+                            isSensitive 
+                              ? 'bg-red-500/20 text-red-500 border border-red-500/30'
+                              : 'bg-[#2a2a4a]/40 text-[#6a6a8a] hover:bg-[#2a2a4a]/80 border border-transparent'
+                          }`}
+                        >
+                          {c.name}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
 
