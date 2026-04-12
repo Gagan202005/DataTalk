@@ -17,7 +17,7 @@ Rules:
 3. Always include meaningful aliases with AS.
 4. For time-series: ORDER BY the date/time column.
 5. For comparisons: include all relevant grouping columns.
-6. The table name is always 'data'.
+6. Use the exact table names listed in the schema — multiple tables may be available.
 7. For date filtering use standard SQL: WHERE date_column >= '2024-01-01' (DuckDB handles ISO date strings natively).
 8. Output ONLY the raw SQL query — no markdown, no explanation, no backticks, no code fences.
 9. If the question cannot be answered with the given schema, return: SELECT 'CANNOT_ANSWER' as error;
@@ -29,6 +29,7 @@ CRITICAL — GRAPHS AND AGGREGATIONS:
 13. For time-based charts (year vs count, monthly trend, etc.): extract the time unit using STRFTIME (e.g., STRFTIME('%Y', date_col) AS year), GROUP BY it, and COUNT(*) AS incident_count (or SUM of numeric col). ORDER BY the time column.
 14. Aggregation queries (GROUP BY) must NOT have a LIMIT unless the user explicitly asks for "top N". All groups should be returned.
 15. Only use LIMIT 100 for raw record lookups where no GROUP BY is present.
+16. When a question involves columns from different tables, use JOIN. Prefer joining on columns with the same name across tables.
 """
 
 # System prompt for chart recommendation
@@ -53,6 +54,27 @@ Rules:
 """
 
 
+def _build_schema_str(session: dict) -> str:
+    """Build a multi-table schema description for the LLM prompt."""
+    tables = session.get("tables", {})
+    parts = []
+    for table_name, meta in tables.items():
+        cols = meta.get("schema", [])
+        col_desc = ", ".join(
+            f"{c['name']} ({c['type']})" for c in cols
+        )
+        parts.append(f"Table '{table_name}': {col_desc}")
+    return "\n".join(parts)
+
+
+def _get_all_schema_cols(session: dict) -> list:
+    """Return a flat list of all column dicts across all tables."""
+    all_cols = []
+    for meta in session.get("tables", {}).values():
+        all_cols.extend(meta.get("schema", []))
+    return all_cols
+
+
 async def run_sql_agent(
     question: str,
     session: dict,
@@ -63,18 +85,18 @@ async def run_sql_agent(
 
     Args:
         question: User's plain English question.
-        session: Session dict containing db, schema, semantic_layer.
+        session: Session dict containing db, tables, semantic_layer.
         include_chart: Whether to generate chart recommendations.
 
     Returns:
         Dict with sql_query, data, chart, columns_used, row_count.
     """
     db = session["db"]
-    schema = session["schema"]
     semantic_layer = session.get("semantic_layer")
 
-    # Format schema for prompt
-    schema_str = json.dumps(schema, indent=2)
+    # Build multi-table schema string and flat column list
+    schema_str = _build_schema_str(session)
+    all_cols = _get_all_schema_cols(session)
     semantic_str = semantic_layer.to_json() if semantic_layer else "No custom metrics defined."
 
     # Build the full prompt
@@ -98,8 +120,8 @@ async def run_sql_agent(
         retry_prompt = (
             f"The following SQL query failed:\n{sql_query}\n\n"
             f"Error: {result['error']}\n\n"
-            f"Fix the SQL query. Remember: table name is 'data'. "
-            f"Only use columns from the schema. Output ONLY the fixed SQL."
+            f"Fix the SQL query. Use only the exact table names and columns from the schema. "
+            f"Output ONLY the fixed SQL."
         )
 
         sql_query = await gemini.generate(
@@ -116,7 +138,7 @@ async def run_sql_agent(
                 f"SQL still failing:\n{sql_query}\n\n"
                 f"Error: {result['error']}\n\n"
                 f"Write a simpler query. Use basic SELECT, WHERE, GROUP BY. "
-                f"Table is 'data'. Output ONLY SQL."
+                f"Use only exact table names from the schema. Output ONLY SQL."
             )
             sql_query = await gemini.generate(
                 prompt=retry_prompt2,
@@ -126,6 +148,11 @@ async def run_sql_agent(
             sql_query = _clean_sql(sql_query)
             result = db.execute_query(sql_query)
 
+    # Total rows: sum across all tables
+    total_rows = sum(
+        db.get_table_row_count(t) for t in session.get("tables", {})
+    )
+
     if not result["success"]:
         return {
             "sql_query": sql_query,
@@ -133,13 +160,11 @@ async def run_sql_agent(
             "chart": None,
             "columns_used": [],
             "row_count": 0,
-            "total_rows": db.get_row_count(),
+            "total_rows": total_rows,
             "error": f"Could not execute query: {result['error']}",
         }
 
-    # Detect CANNOT_ANSWER sentinel returned by the LLM when the question
-    # cannot be answered from the schema — surface it as a clean error instead
-    # of passing a row like {error: 'CANNOT_ANSWER'} to the explain agent.
+    # Detect CANNOT_ANSWER sentinel
     if (
         result["data"]
         and len(result["data"]) == 1
@@ -151,7 +176,7 @@ async def run_sql_agent(
             "chart": None,
             "columns_used": [],
             "row_count": 0,
-            "total_rows": db.get_row_count(),
+            "total_rows": total_rows,
             "error": "This question cannot be answered with the available data columns.",
         }
 
@@ -161,10 +186,10 @@ async def run_sql_agent(
         try:
             chart = await _recommend_chart(sql_query, result["data"][:10], result["columns"])
         except Exception:
-            chart = None  # Charts are optional, don't fail on this
+            chart = None
 
-    # Extract columns used from SQL
-    columns_used = _extract_columns_from_sql(sql_query, schema)
+    # Extract columns used from SQL (search across all tables' schemas)
+    columns_used = _extract_columns_from_sql(sql_query, all_cols)
 
     return {
         "sql_query": sql_query,
@@ -172,7 +197,7 @@ async def run_sql_agent(
         "chart": chart,
         "columns_used": columns_used,
         "row_count": result["row_count"],
-        "total_rows": db.get_row_count(),
+        "total_rows": total_rows,
     }
 
 
@@ -217,7 +242,7 @@ async def _recommend_chart(sql: str, sample_data: list, columns: list) -> dict |
 
         return {
             "type": result.get("chart_type", "bar"),
-            "data": sample_data,  # Will be replaced with full data in orchestrator
+            "data": sample_data,
             "x_key": x_key,
             "y_key": y_key,
             "title": result.get("title", "Chart"),

@@ -38,14 +38,16 @@ async def export_pdf(request: Request, body: ExportRequest):
         from app.utils.pdf_generator import generate_pdf_report
 
         session = sessions[body.session_id]
-        
+
+        # Build tables info from new multi-table session structure
+        tables = session.get("tables", {})
+
         template_info_dict = body.template_info.model_dump() if body.template_info else None
         attachments_list = [att.model_dump() for att in body.attachments] if body.attachments else None
 
         pdf_bytes = generate_pdf_report(
             messages=body.messages,
-            filename=session.get("filename", "Unknown"),
-            schema=session.get("schema", []),
+            tables=tables,
             semantic_layer=session.get("semantic_layer"),
             template_info=template_info_dict,
             attachments=attachments_list,

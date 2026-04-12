@@ -4,9 +4,11 @@ const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api';
 
 export const api = {
   // Upload a file (CSV, Excel, JSON)
-  uploadFile: async (file) => {
+  // Pass sessionId to add the file to an existing session (multi-table flow)
+  uploadFile: async (file, sessionId = null) => {
     const formData = new FormData();
     formData.append('file', file);
+    if (sessionId) formData.append('session_id', sessionId);
     const response = await axios.post(`${API_BASE}/upload`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
@@ -60,5 +62,14 @@ export const api = {
     link.click();
     link.remove();
     window.URL.revokeObjectURL(url);
+  },
+
+  // Apply user-approved preprocessing fixes
+  applyPreprocessing: async (sessionId, approvedStepIds) => {
+    const response = await axios.post(`${API_BASE}/preprocess/apply`, {
+      session_id: sessionId,
+      approved_step_ids: approvedStepIds,
+    });
+    return response.data;
   },
 };

@@ -6,8 +6,10 @@ export default function Sidebar({
   isOpen, fileData, onNewChat, onClearDataset, onExportPDF,
   semanticLayer, onUpdateSemanticLayer, sessionId,
   schema, dataQuality, sensitiveColumns = [], onUpdateSensitiveColumns,
+  tables = {},
 }) {
   const [showEditor, setShowEditor] = useState(false);
+  const [expandedTable, setExpandedTable] = useState(null);
 
   return (
     <>
@@ -33,98 +35,124 @@ export default function Sidebar({
         <div className="sidebar-body">
           {fileData ? (
             <>
-              {/* Dataset info */}
+              {/* Dataset info — one card per table */}
               <div>
-                <div className="sidebar-section-label">Active Dataset</div>
-                <div className="sidebar-card">
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-                    <Database size={12} style={{ color: 'var(--sidebar-accent)', flexShrink: 0 }} />
-                    <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--sidebar-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {fileData.name || fileData.fileName}
-                    </span>
-                  </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
-                    {[
-                      { label: 'Rows', val: ((fileData.rows || fileData.rowCount) || 0).toLocaleString() },
-                      { label: 'Cols', val: fileData.columns || fileData.colCount || 0 },
-                    ].map(({ label, val }) => (
-                      <div key={label} style={{ textAlign: 'center', padding: '5px 0', borderRadius: 6, background: 'rgba(255,255,255,0.04)' }}>
-                        <div style={{ fontSize: 9, color: 'var(--sidebar-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</div>
-                        <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--sidebar-text)', marginTop: 1 }}>{val}</div>
+                <div className="sidebar-section-label">Active Datasets</div>
+                {Object.entries(tables).map(([tableName, meta]) => {
+                  const isExpanded = expandedTable === tableName;
+                  const tableCols  = meta.schema || [];
+                  return (
+                    <div key={tableName} className="sidebar-card" style={{ marginBottom: 6 }}>
+                      <div
+                        style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: isExpanded ? 8 : 0, cursor: 'pointer' }}
+                        onClick={() => setExpandedTable(isExpanded ? null : tableName)}
+                      >
+                        <Database size={12} style={{ color: 'var(--sidebar-accent)', flexShrink: 0 }} />
+                        <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--sidebar-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+                          {meta.filename}
+                        </span>
+                        <span style={{ fontSize: 9, color: 'var(--sidebar-accent)', fontFamily: 'monospace', flexShrink: 0 }}>{tableName}</span>
+                        <span style={{ fontSize: 9, color: 'var(--sidebar-muted)', flexShrink: 0 }}>{isExpanded ? '▲' : '▼'}</span>
                       </div>
-                    ))}
-                  </div>
-                  {(schema || []).length > 0 && (
-                    <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                      {(schema || []).slice(0, 5).map(c => (
-                        <span key={c.name} style={{ fontSize: 9, padding: '2px 5px', borderRadius: 4, background: 'rgba(255,255,255,0.05)', color: 'var(--sidebar-muted)', maxWidth: 72, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {c.name}
-                        </span>
-                      ))}
-                      {(schema || []).length > 5 && (
-                        <span style={{ fontSize: 9, padding: '2px 5px', borderRadius: 4, background: 'rgba(255,255,255,0.05)', color: 'var(--sidebar-muted)' }}>
-                          +{schema.length - 5}
-                        </span>
+                      {isExpanded && (
+                        <>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                            {[
+                              { label: 'Rows', val: (meta.rowCount || 0).toLocaleString() },
+                              { label: 'Cols', val: meta.colCount || 0 },
+                            ].map(({ label, val }) => (
+                              <div key={label} style={{ textAlign: 'center', padding: '5px 0', borderRadius: 6, background: 'rgba(255,255,255,0.04)' }}>
+                                <div style={{ fontSize: 9, color: 'var(--sidebar-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</div>
+                                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--sidebar-text)', marginTop: 1 }}>{val}</div>
+                              </div>
+                            ))}
+                          </div>
+                          {tableCols.length > 0 && (
+                            <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                              {tableCols.slice(0, 5).map(c => (
+                                <span key={c.name} style={{ fontSize: 9, padding: '2px 5px', borderRadius: 4, background: 'rgba(255,255,255,0.05)', color: 'var(--sidebar-muted)', maxWidth: 72, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                  {c.name}
+                                </span>
+                              ))}
+                              {tableCols.length > 5 && (
+                                <span style={{ fontSize: 9, padding: '2px 5px', borderRadius: 4, background: 'rgba(255,255,255,0.05)', color: 'var(--sidebar-muted)' }}>
+                                  +{tableCols.length - 5}
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </>
                       )}
                     </div>
-                  )}
-                </div>
+                  );
+                })}
               </div>
 
-              {/* Data Quality */}
+              {/* Data Quality — per table */}
               <div>
                 <div className="sidebar-section-label">Data Quality</div>
-                <div className="sidebar-card">
-                  {(() => {
-                    const score = dataQuality?.overall_score ?? 100;
+                <div className="sidebar-card" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {Object.entries(tables).map(([tableName, meta]) => {
+                    const score = meta.dataQuality?.overall_score ?? 100;
                     const color = score >= 75 ? '#4ade80' : score >= 50 ? '#fbbf24' : '#f87171';
-                    const nullCount = (schema || []).filter(c => c.missing_pct > 0).length;
+                    const nullCount = (meta.schema || []).filter(c => c.missing_pct > 0).length;
                     return (
-                      <>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                          <span style={{ fontSize: 11, color: 'var(--sidebar-muted)' }}>Overall score</span>
-                          <span style={{ fontSize: 12, fontWeight: 700, color }}>{score}%</span>
+                      <div key={tableName}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 3 }}>
+                          <span style={{ fontSize: 10, color: 'var(--sidebar-accent)', fontFamily: 'monospace' }}>{tableName}</span>
+                          <span style={{ fontSize: 11, fontWeight: 700, color }}>{score}%</span>
                         </div>
                         <div className="quality-bar-track">
                           <div className="quality-bar-fill" style={{ width: `${score}%`, backgroundColor: color }} />
                         </div>
-                        <p style={{ fontSize: 10, marginTop: 5, color: nullCount > 0 ? '#fbbf24' : '#4ade80' }}>
-                          {nullCount > 0 ? `${nullCount} column${nullCount > 1 ? 's' : ''} with missing values` : 'No missing values'}
+                        <p style={{ fontSize: 9, marginTop: 3, color: nullCount > 0 ? '#fbbf24' : '#4ade80' }}>
+                          {nullCount > 0 ? `${nullCount} col${nullCount > 1 ? 's' : ''} with nulls` : 'No missing values'}
                         </p>
-                      </>
+                      </div>
                     );
-                  })()}
+                  })}
                 </div>
               </div>
 
-              {/* Sensitive columns */}
-              {(schema || []).length > 0 && (
+              {/* Sensitive columns — grouped by table */}
+              {Object.keys(tables).length > 0 && (
                 <div>
                   <div className="sidebar-section-label">Sensitive Columns</div>
-                  <div className="sidebar-card" style={{ maxHeight: 176, overflowY: 'auto' }}>
-                    <p style={{ fontSize: 10.5, color: 'var(--sidebar-muted)', marginBottom: 8, lineHeight: 1.5 }}>
-                      Click to mark private/PII columns — the AI will hide their values from answers.
+                  <div className="sidebar-card" style={{ maxHeight: 200, overflowY: 'auto' }}>
+                    <p style={{ fontSize: 10, color: 'var(--sidebar-muted)', marginBottom: 8, lineHeight: 1.5 }}>
+                      Click to mark PII columns — AI will hide their values.
                     </p>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                      {(schema || []).map(c => {
-                        const isSensitive = sensitiveColumns.includes(c.name);
-                        return (
-                          <button
-                            key={c.name}
-                            className={`col-tag ${isSensitive ? 'sensitive' : 'normal'}`}
-                            onClick={() => onUpdateSensitiveColumns && onUpdateSensitiveColumns(
-                              isSensitive
-                                ? sensitiveColumns.filter(n => n !== c.name)
-                                : [...sensitiveColumns, c.name]
-                            )}
-                            title={isSensitive ? `${c.name} — marked as sensitive (click to unmark)` : `Click to mark '${c.name}' as sensitive`}
-                          >
-                            {isSensitive && <Lock size={9} style={{ flexShrink: 0 }} />}
-                            {c.name}
-                          </button>
-                        );
-                      })}
-                    </div>
+                    {Object.entries(tables).map(([tableName, meta]) => {
+                      const cols = meta.schema || [];
+                      if (!cols.length) return null;
+                      return (
+                        <div key={tableName} style={{ marginBottom: 8 }}>
+                          <div style={{ fontSize: 9, color: 'var(--sidebar-accent)', fontFamily: 'monospace', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                            {tableName}
+                          </div>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+                            {cols.map(c => {
+                              const isSensitive = sensitiveColumns.includes(c.name);
+                              return (
+                                <button
+                                  key={c.name}
+                                  className={`col-tag ${isSensitive ? 'sensitive' : 'normal'}`}
+                                  onClick={() => onUpdateSensitiveColumns && onUpdateSensitiveColumns(
+                                    isSensitive
+                                      ? sensitiveColumns.filter(n => n !== c.name)
+                                      : [...sensitiveColumns, c.name]
+                                  )}
+                                  title={isSensitive ? `${c.name} — sensitive (click to unmark)` : `Mark '${c.name}' as sensitive`}
+                                >
+                                  {isSensitive && <Lock size={9} style={{ flexShrink: 0 }} />}
+                                  {c.name}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}
