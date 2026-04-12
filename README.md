@@ -1,13 +1,10 @@
-# DataTalk — Talk to Your Data, Trust Every Answer
+# DataTalk — Seamless Self-Service Intelligence
 
-> **NatWest Code for Purpose India Hackathon 2026**
-> *Self-service business intelligence through natural language — secure, fast, and model-agnostic.*
+**NatWest Code for Purpose India Hackathon 2026 | Talk to Data**
 
----
+DataTalk enables any user to ask questions about their data in plain English and receive clear, verifiable answers in seconds. No SQL, no dashboards, no data team required. Upload a dataset, ask a question, and get an answer backed by a source reference, a confidence score, and a chart where applicable.
 
-## The Core Problem (And Why Most Solutions Miss It)
-
-Thousands of tools let users "chat with data." Most of them **send your raw data rows to an external AI model** — a serious privacy and compliance risk. DataTalk is architecturally different: **your actual data never leaves your server.** The LLM only ever sees column names and types. Never values.
+The system is built on three pillars from the NatWest problem statement: **Clarity** (answers non-experts can act on immediately), **Trust** (every response cites its data source and carries a reliability rating), and **Speed** (a multi-agent pipeline routes each question to the right tool automatically, with no manual steps required).
 
 ---
 
@@ -17,31 +14,55 @@ Thousands of tools let users "chat with data." Most of them **send your raw data
 
 ```mermaid
 graph LR
-    U([👤 User]) --> FE["React\nFrontend"]
-    FE -->|REST API| BE["FastAPI\nBackend"]
-    BE --> O["🧠 Orchestrator\nAgent"]
+    subgraph CL["  Client  "]
+        U([" 👤 User "])
+        FE["React\nFrontend"]
+    end
 
-    O --> SA["SQL Agent"]
-    O --> CA["Code Agent"]
-    O --> WA["Search Agent"]
-    O --> EA["Explain Agent"]
+    subgraph BK["  Secure Backend  "]
+        API["FastAPI"]
+        O["🧠 Orchestrator"]
+        SA["SQL Agent"]
+        CA["Code Agent"]
+        WA["Search Agent"]
+        EA["Explain Agent"]
+        SBX["🔒 Python\nSandbox"]
+    end
 
-    SA & CA -->|"Schema Only\n⛔ No Raw Data"| LLM["☁️ Any LLM\nAPI"]
+    subgraph DL["  Data Layer  "]
+        DB[("Embedded\nAnalytical DB")]
+        FS[("Session\nFiles")]
+    end
 
-    SA -->|DuckDB SQL| DB[("DuckDB\nSession")]
-    CA --> SB["🔒 Python\nSandbox"]
-    SB --> DB
-    WA --> WEB["🌐 Web"]
-    DB -.->|One .duckdb\nper session| FS[("File\nSystem")]
+    LLM["☁️ Any LLM API"]
+    WEB["🌐 Web Search"]
 
-    style LLM fill:#1e3a8a,color:#fff,stroke:#3b82f6
-    style SB fill:#14532d,color:#fff,stroke:#22c55e
-    style DB fill:#7c2d12,color:#fff,stroke:#f97316
-    style FS fill:#581c87,color:#fff,stroke:#a855f7
-    style O fill:#1e293b,color:#fff,stroke:#64748b
+    U --> FE
+    FE -->|REST| API
+    API --> O
+    O --> SA
+    O --> CA
+    O --> WA
+    O --> EA
+    SA -->|"Schema only"| LLM
+    CA -->|"Schema only"| LLM
+    SA --> DB
+    CA --> SBX
+    SBX --> DB
+    WA --> WEB
+    DB -.->|"Isolated per session"| FS
+
+    style LLM fill:#1e3a8a,color:#fff,stroke:#3b82f6,stroke-width:2px
+    style SBX fill:#14532d,color:#fff,stroke:#22c55e,stroke-width:2px
+    style DB  fill:#7c2d12,color:#fff,stroke:#f97316,stroke-width:2px
+    style FS  fill:#581c87,color:#fff,stroke:#a855f7,stroke-width:2px
+    style O   fill:#1e293b,color:#fff,stroke:#94a3b8,stroke-width:2px
+    style BK  fill:#0f172a,color:#e2e8f0,stroke:#334155
+    style DL  fill:#0f172a,color:#e2e8f0,stroke:#334155
+    style CL  fill:#0f172a,color:#e2e8f0,stroke:#334155
 ```
 
-### Low-Level Design (LLD) — Request Sequence
+### Request Flow (LLD — Sequence Diagram)
 
 ```mermaid
 sequenceDiagram
@@ -51,70 +72,109 @@ sequenceDiagram
     participant O as Orchestrator
     participant A as Agent
     participant L as LLM API
-    participant D as DuckDB
+    participant D as Analytical DB
 
-    U->>F: Upload CSV / Excel / JSON
+    U->>F: Upload CSV / Excel / JSON / TSV
     F->>B: POST /api/upload
-    B->>D: Load & persist data
-    B-->>F: schema + quality score + anomalies
+    B->>D: Load, persist, extract schema
+    B-->>F: Schema + quality score + anomaly report
 
-    U->>F: Ask natural language question
+    U->>F: Ask question in plain English
     F->>B: POST /api/chat
     B->>O: Route question
-    O->>L: Classify intent (schema only)
-    L-->>O: agent_type
+    O->>L: Intent detection (schema only, no data values)
+    L-->>O: Agent type selected
 
-    alt SQL Query / Visualisation
-        O->>A: SQL Agent
-        A->>L: schema + question → SQL
-        L-->>A: DuckDB SQL
-        A->>D: Execute
-        D-->>A: Result rows
+    alt SQL Query or Visualisation
+        O->>A: SQL Agent activated
+        A->>L: Schema + question, returns SQL
+        A->>D: Execute parameterised query
+        D-->>A: Result set
     else Statistical Analysis
-        O->>A: Code Agent
-        A->>L: schema + question → Python
-        L-->>A: Python code
-        Note over A: 🔒 Sandbox: whitelisted libs<br/>no I/O · no network · 30s timeout
-        A->>D: Read DataFrame
-        D-->>A: Data
+        O->>A: Code Agent activated
+        A->>L: Schema + question, returns Python code
+        Note over A: Sandbox: whitelisted libs only<br/>No file I/O · No network · 30 s hard limit
+        A->>D: Read local DataFrame
+        D-->>A: Data for local computation
     end
 
-    A->>L: Explain results in plain English
-    L-->>A: Business-friendly answer
-    A-->>B: answer + chart + confidence score
-    B-->>F: Full response
-    F-->>U: Answer + Visualisation
+    A->>L: Summarise result in plain English
+    L-->>A: Business-friendly explanation
+    A-->>B: Answer + chart + confidence score + sources
+    B-->>F: Structured response
+    F-->>U: Answer, visualisation, and source reference
 ```
 
 ---
 
-## What Sets DataTalk Apart
+## Security by Design
 
-| | Typical "Chat with Data" | **DataTalk** |
+DataTalk treats data privacy as a hard architectural constraint, not a configuration option. The LLM has no access to your actual data at any stage. Security is enforced through five independent layers, each operating without relying on any other:
+
+**Layer 1 — Schema-only LLM prompting**
+Agents send the LLM only column names and data types. The LLM returns SQL or Python targeting that schema. Query execution happens entirely on the local server. The LLM never receives a single data value.
+
+**Layer 2 — Python sandbox with hard boundaries**
+Statistical analysis requires code execution, which carries inherent risk in most systems. Every piece of LLM-generated Python runs inside a restricted interpreter with a fixed import whitelist: `pandas`, `numpy`, `matplotlib`, `seaborn`, `scipy`, `sklearn`. The `open()` builtin is removed. OS, socket, and subprocess modules are inaccessible at the interpreter level. A 30-second thread-based timeout terminates any runaway or malicious execution. No data can leave the machine through generated code.
+
+**Layer 3 — Session isolation**
+Every file upload is assigned a UUID. Each session maintains its own database file, its own in-memory cache, and its own connection object. No session can read, query, or infer data from another session.
+
+**Layer 4 — Sensitive column masking**
+Users can flag individual columns as sensitive before querying. When a flagged column appears in a result, the Explain Agent is bypassed entirely. No LLM processes values from those columns, even indirectly.
+
+**Layer 5 — Input validation and query safety**
+Accepted file extensions: `.csv`, `.xlsx`, `.xls`, `.json`, `.tsv`. Maximum upload size: 50 MB. Column names are normalised on ingest. All database queries use identifier quoting and parameterisation to prevent injection.
+
+```
+Data boundary — enforced at every step:
+
+  User uploads file
+        |
+        v
+  Analytical DB (local server)
+        |
+        v
+  Schema extracted (names + types only)
+        |
+        v
+  Sent to LLM
+        |
+  Raw data stops here, always
+```
+
+---
+
+## How DataTalk Compares
+
+Most natural language data tools send your data to a remote model to generate answers. DataTalk inverts this: the intelligence comes to your data, not the other way around.
+
+| Dimension | Standard NL-to-Data Tools | DataTalk |
 |---|---|---|
-| Raw data sent to LLM | Yes — full rows | **Never — schema only** |
-| Statistical analysis | SQL only | **SQL + sandboxed Python** |
-| Model flexibility | Vendor-locked | **Any LLM provider** |
-| Sensitive data control | None | **Column-level masking** |
-| Code execution safety | Uncontrolled | **Whitelist sandbox + 30 s timeout** |
-| Answer reliability | No indicator | **Confidence score 0–100** |
+| Data sent to LLM | Full rows and values | Schema only — no data values ever |
+| Analysis depth | SQL aggregations only | SQL plus sandboxed Python: stats, ML, custom charts |
+| LLM provider | Vendor-locked to one API | Any provider, swapped via one line in `.env` |
+| Sensitive data handling | No mechanism exists | Column-level masking with automatic agent bypass |
+| Code execution safety | Unrestricted or absent | Whitelisted sandbox, file I/O blocked, 30 s hard timeout |
+| Answer reliability signal | None provided | Confidence score 0 to 100 with cited data source |
+| Metric consistency | Ad hoc interpretation per query | Semantic layer: define business metrics once, reuse everywhere |
+| Data quality visibility | Not surfaced | Missing value analysis, duplicate detection, 3-sigma anomaly flags |
 
 ---
 
 ## Features
 
-- **Natural language → instant insights** — no SQL knowledge needed
-- **Multi-agent orchestration** — SQL for aggregations, Python for statistics, web for context
-- **Security-first design** — raw data never reaches the LLM; schema-only prompting
-- **Any LLM, any provider** — model-agnostic; swap providers via a single `.env` variable
-- **Sandboxed Python execution** — statistical analysis with zero data-leak risk
-- **Sensitive column protection** — mark columns to exclude from all AI processing
-- **Confidence scoring** — every answer rated 0–100 with source transparency
-- **Auto-generated charts** — bar, line, scatter, heatmap from natural language
-- **Semantic layer** — define custom business metrics (e.g. `churn_rate = churned / total`)
-- **PDF export** — download full Q&A sessions as formatted reports
-- **Data quality dashboard** — missing values, duplicate detection, anomaly alerts
-- **Multi-format upload** — CSV, Excel, JSON, TSV (up to 50 MB)
+- Natural language to instant insight with no SQL knowledge required
+- Multi-agent pipeline: SQL for aggregations, sandboxed Python for statistics, web search for external context
+- Schema-only LLM prompting: raw data stays on your server at all times
+- Pluggable LLM backend: swap any provider by changing one environment variable
+- Sensitive column protection: user-controlled masking enforced at the agent level
+- Confidence scoring: every answer rated 0 to 100 with transparent source references
+- Semantic layer: define and reuse custom business metrics across all queries
+- Auto-generated charts: bar, line, scatter, and heatmap driven by natural language
+- PDF export: download full Q&A sessions as formatted, shareable reports
+- Data quality dashboard: missing values, duplicates, and anomaly detection on upload
+- Multi-format upload: CSV, Excel, JSON, and TSV files up to 50 MB
 
 ---
 
@@ -122,30 +182,34 @@ sequenceDiagram
 
 | Layer | Technology |
 |---|---|
-| **Frontend** | React 19, Vite, Tailwind CSS, Recharts, Radix UI |
-| **Backend** | Python 3.11, FastAPI, Uvicorn |
-| **Database** | DuckDB — one isolated `.duckdb` session file per upload |
-| **Data processing** | Pandas, NumPy |
-| **Analytics** | scikit-learn, scipy, matplotlib, seaborn |
-| **LLM** | Any provider via API (configured via `.env`) |
-| **PDF reports** | ReportLab |
-| **Web search** | DuckDuckGo (no API key required) |
+| Frontend | React 19, Vite, Tailwind CSS, Recharts, Radix UI |
+| Backend | Python 3.11, FastAPI, Uvicorn |
+| Database | DuckDB (embedded columnar store, one isolated file per session) |
+| Data processing | Pandas, NumPy |
+| Analytics | scikit-learn, scipy, matplotlib, seaborn |
+| LLM | Any provider via API (configured in `.env`) |
+| PDF reports | ReportLab |
+| Web search | DuckDuckGo (no API key required) |
 
 ---
 
-## Install & Run
+## Install and Run
 
 ### Prerequisites
-- Python 3.11+, Node.js 20+
 
-### 1. Clone & configure
+Python 3.11 or later and Node.js 20 or later.
+
+### 1. Clone and configure
+
 ```bash
-git clone <repo-url> && cd DataTalk
+git clone <repo-url>
+cd DataTalk
 cp backend/.env.example backend/.env
-# Add your LLM API key in backend/.env
+# Add your LLM API key to backend/.env
 ```
 
 ### 2. Backend
+
 ```bash
 cd backend
 pip install -r requirements.txt
@@ -153,6 +217,7 @@ uvicorn app.main:app --reload --port 8000
 ```
 
 ### 3. Frontend
+
 ```bash
 cd frontend
 npm install
@@ -164,58 +229,34 @@ npm run dev
 
 ## Usage Examples
 
-Upload any dataset and ask in plain English:
+Upload any structured dataset, then ask in plain English:
 
 ```
 "Why did revenue drop last month?"
-→ Revenue fell 11% in February. South region drove 22% of the drop due to reduced ad spend.
+-> Revenue fell 11% in February. South region contributed 22% of the decline due to reduced ad spend.
 
-"Show correlation between age and transaction value"
-→ Heatmap generated entirely in the Python sandbox — raw data never touches the LLM.
+"Show the correlation between customer age and transaction value"
+-> Heatmap generated inside the Python sandbox. The LLM received only column names, not values.
 
-"Compare Product A vs Product B this quarter"
-→ Product A grew 8% WoW vs Product B (+2%). Primary driver: higher returning customer rate.
-
-"Give me a weekly summary of customer metrics"
-→ Signups +5%, churn stable, average handle time improved by 12 seconds.
+"Compare Product A and Product B this quarter"
+-> Product A grew 8% week-on-week, outperforming Product B at 2%. Primary driver: higher return customer rate.
 
 "What makes up total sales by region?"
-→ North accounts for 40% of total sales; Retail contributes the majority of that share.
+-> North accounts for 40% of total sales. Retail contributes the majority within that share.
+
+"Give me a weekly summary of customer metrics"
+-> Signups up 5%, churn stable, average handle time improved by 12 seconds.
 ```
 
 ---
 
-## The Python Sandbox — A Key Differentiator
+## Architecture Notes
 
-Most "chat with data" tools are SQL-only. Real statistical analysis — correlations, distributions, regression, clustering — requires code execution. The risk: an LLM could generate code that reads your filesystem, calls the network, or leaks data.
+DataTalk uses a multi-agent orchestration pattern. The Orchestrator classifies each incoming question into one of five intent categories and routes it to the appropriate specialist agent. Agents use the LLM only to translate intent into executable SQL or Python. Execution happens locally against the embedded analytical database, so the LLM acts as a translator, not a data processor.
 
-DataTalk's sandbox enforces hard boundaries:
+DuckDB was selected for its columnar storage model, embedded execution with zero server infrastructure, and native support for Pandas DataFrames. Each session writes to its own isolated database file, ensuring complete data separation between users.
 
-- **Whitelisted imports only**: `pandas`, `numpy`, `matplotlib`, `seaborn`, `scipy`, `sklearn` — nothing else loads
-- **No file I/O**: `open()` is blocked; no read or write to disk from generated code
-- **No network or subprocess**: OS, socket, and subprocess modules are inaccessible
-- **30-second hard timeout**: thread-based enforcement stops runaway or malicious loops
-- **Fresh isolated namespace**: every execution is scoped; no state leaks between queries
-
-The LLM receives only the **schema and column names** to generate code — it never sees your actual data values.
-
----
-
-## Security Architecture
-
-```
-User Data Path:
-  Upload → DuckDB (local) → schema extracted → schema sent to LLM
-                                  ↑
-                      Raw data stops here — always
-```
-
-- **Session isolation**: every upload gets a UUID; sessions never share state
-- **SQL injection prevention**: parameterised DuckDB queries; schema-only prompting
-- **Sensitive columns**: user-marked columns excluded from all AI explanations
-- **File validation**: extension whitelist (`.csv .xlsx .json .tsv`) + 50 MB cap
-- **CORS**: locked to frontend origin only
-- **No secrets in code**: all credentials via environment variables
+The Python sandbox is central to the system's analytical depth. Correlations, distributions, regressions, and clustering all require code execution that SQL cannot express. The sandbox makes this safe without sacrificing capability: the LLM generates code against column metadata, the sandbox executes it in isolation, and the result flows back to the user as a chart or summary.
 
 ---
 
@@ -226,40 +267,17 @@ DataTalk/
 ├── backend/
 │   ├── app/
 │   │   ├── agents/       # Orchestrator, SQL, Code, Search, Explain agents
-│   │   ├── core/         # DuckDB manager, schema analysis, confidence scoring
-│   │   ├── routes/       # Upload, chat, semantic layer, PDF export endpoints
+│   │   ├── core/         # DB manager, schema analysis, confidence scoring
+│   │   ├── routes/       # Upload, chat, semantic layer, PDF export
 │   │   └── utils/        # LLM client, Python sandbox, PDF generator
 │   ├── requirements.txt
 │   └── .env.example
 ├── frontend/
 │   ├── src/
 │   │   ├── components/   # React UI components
-│   │   ├── hooks/        # Chat state, backend health check
+│   │   ├── hooks/        # Chat state, backend health
 │   │   └── services/     # Axios API client
 │   └── package.json
-├── docs/                 # Architecture and planning docs
+├── docs/                 # Architecture and planning documents
 └── README.md
 ```
-
----
-
-## Architecture Notes
-
-DataTalk uses a **multi-agent orchestration pattern**. The Orchestrator classifies each question into one of five intent types and routes it to the appropriate specialist agent. Agents communicate with the LLM using only metadata — making the system safe to deploy with any cloud AI provider without data residency concerns.
-
-DuckDB was chosen over SQLite or PostgreSQL for its **columnar analytical performance** and its ability to run as an embedded process with zero infrastructure. Each session gets its own `.duckdb` file, ensuring complete data isolation between users.
-
----
-
-## Limitations
-
-- Complex multi-table joins across separate uploaded files are not yet supported
-- Web search enrichment adds ~2–3 s latency per query
-- PDF export does not yet embed chart images inline
-
-## Future Improvements
-
-- Direct database connections (PostgreSQL, Snowflake, BigQuery)
-- Streaming responses for large result sets
-- Role-based access control for team deployments
-- Local LLM support (Ollama) for fully air-gapped deployments
