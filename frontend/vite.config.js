@@ -10,7 +10,7 @@ export default defineConfig({
   ],
   server: {
     proxy: {
-      '/api': 'http://localhost:8002'
+      '/api': process.env.VITE_BACKEND_URL || 'http://localhost:8002'
     }
   }
 })
