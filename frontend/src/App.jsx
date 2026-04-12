@@ -6,7 +6,6 @@ import ChatMessage from './components/ChatMessage';
 import ChatInput from './components/ChatInput';
 import WelcomeScreen from './components/WelcomeScreen';
 import Sidebar from './components/Sidebar';
-import BackendStatus from './components/BackendStatus';
 import SplashScreen from './components/SplashScreen';
 import { useChat } from './hooks/useChat';
 
@@ -94,7 +93,6 @@ export default function App() {
             </span>
           )}
           <div style={{ flex: 1 }} />
-          <BackendStatus />
         </header>
 
         {/* Messages */}
