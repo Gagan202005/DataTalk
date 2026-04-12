@@ -12,55 +12,29 @@ The system is built on three pillars from the NatWest problem statement: **Clari
 
 ### High-Level Design (HLD)
 
-```mermaid
 graph LR
-    subgraph CL["  Client  "]
-        U([" 👤 User "])
-        FE["React\nFrontend"]
-    end
+    U([👤 User]) --> FE["React\nFrontend"]
+    FE -->|REST API| BE["FastAPI\nBackend"]
+    BE --> O["🧠 Orchestrator\nAgent"]
 
-    subgraph BK["  Secure Backend  "]
-        API["FastAPI"]
-        O["🧠 Orchestrator"]
-        SA["SQL Agent"]
-        CA["Code Agent"]
-        WA["Search Agent"]
-        EA["Explain Agent"]
-        SBX["🔒 Python\nSandbox"]
-    end
+    O --> SA["SQL Agent"]
+    O --> CA["Code Agent"]
+    O --> WA["Search Agent"]
+    O --> EA["Explain Agent"]
 
-    subgraph DL["  Data Layer  "]
-        DB[("Embedded\nAnalytical DB")]
-        FS[("Session\nFiles")]
-    end
+    SA & CA -->|"Schema Only\n⛔ No Raw Data"| LLM["☁️ Any LLM\nAPI"]
 
-    LLM["☁️ Any LLM API"]
-    WEB["🌐 Web Search"]
+    SA -->|DuckDB SQL| DB[("DuckDB\nSession")]
+    CA --> SB["🔒 Python\nSandbox"]
+    SB --> DB
+    WA --> WEB["🌐 Web"]
+    DB -.->|One .duckdb\nper session| FS[("File\nSystem")]
 
-    U --> FE
-    FE -->|REST| API
-    API --> O
-    O --> SA
-    O --> CA
-    O --> WA
-    O --> EA
-    SA -->|"Schema only"| LLM
-    CA -->|"Schema only"| LLM
-    SA --> DB
-    CA --> SBX
-    SBX --> DB
-    WA --> WEB
-    DB -.->|"Isolated per session"| FS
-
-    style LLM fill:#1e3a8a,color:#fff,stroke:#3b82f6,stroke-width:2px
-    style SBX fill:#14532d,color:#fff,stroke:#22c55e,stroke-width:2px
-    style DB  fill:#7c2d12,color:#fff,stroke:#f97316,stroke-width:2px
-    style FS  fill:#581c87,color:#fff,stroke:#a855f7,stroke-width:2px
-    style O   fill:#1e293b,color:#fff,stroke:#94a3b8,stroke-width:2px
-    style BK  fill:#0f172a,color:#e2e8f0,stroke:#334155
-    style DL  fill:#0f172a,color:#e2e8f0,stroke:#334155
-    style CL  fill:#0f172a,color:#e2e8f0,stroke:#334155
-```
+    style LLM fill:#1e3a8a,color:#fff,stroke:#3b82f6
+    style SB fill:#14532d,color:#fff,stroke:#22c55e
+    style DB fill:#7c2d12,color:#fff,stroke:#f97316
+    style FS fill:#581c87,color:#fff,stroke:#a855f7
+    style O fill:#1e293b,color:#fff,stroke:#64748b
 
 ### Request Flow (LLD — Sequence Diagram)
 
