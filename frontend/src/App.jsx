@@ -11,6 +11,7 @@ import TopBar from './components/TopBar';
 import StatusBar from './components/StatusBar';
 import ModelLab from './components/ModelLab';
 import FinancialGlobe from './components/FinancialGlobe';
+import CompliancePanel from './components/CompliancePanel';
 import { useChat } from './hooks/useChat';
 
 const PROCESSING_STAGES = [
@@ -26,6 +27,7 @@ export default function App() {
   const [showUpload, setShowUpload]       = useState(false);
   const [modelLabOpen, setModelLabOpen]   = useState(false);
   const [globeOpen, setGlobeOpen]         = useState(false);
+  const [complianceOpen, setComplianceOpen] = useState(false);
   const [stageIdx, setStageIdx]           = useState(0);
   const [mode, setMode]                   = useState('auto');
   const [webSearch, setWebSearch]         = useState(false);
@@ -106,6 +108,7 @@ export default function App() {
             onExportPDF={chat.exportPDF}
             onOpenModelLab={() => setModelLabOpen(true)}
             onOpenGlobe={() => setGlobeOpen(true)}
+            onOpenCompliance={() => setComplianceOpen(true)}
             complianceStatus={complianceStatus}
           />
 
@@ -227,6 +230,13 @@ export default function App() {
         </div>
       </div>
 
+
+      {/* Compliance Panel */}
+      <CompliancePanel
+        isActive={complianceOpen}
+        onClose={() => setComplianceOpen(false)}
+        onAskQuestion={(text) => { chat.sendMessage(text, 'auto', false); setComplianceOpen(false); }}
+      />
 
       {/* Financial Globe overlay */}
       <FinancialGlobe
