@@ -12,6 +12,7 @@ import StatusBar from './components/StatusBar';
 import ModelLab from './components/ModelLab';
 import FinancialGlobe from './components/FinancialGlobe';
 import CompliancePanel from './components/CompliancePanel';
+import AuthGate from './components/AuthGate';
 import { useChat } from './hooks/useChat';
 
 const PROCESSING_STAGES = [
@@ -28,6 +29,7 @@ export default function App() {
   const [modelLabOpen, setModelLabOpen]   = useState(false);
   const [globeOpen, setGlobeOpen]         = useState(false);
   const [complianceOpen, setComplianceOpen] = useState(false);
+  const [authed, setAuthed] = useState(false);
   const [stageIdx, setStageIdx]           = useState(0);
   const [mode, setMode]                   = useState('auto');
   const [webSearch, setWebSearch]         = useState(false);
@@ -74,6 +76,8 @@ export default function App() {
   }, [chat, mode, webSearch]);
 
   const hasMessages = chat.messages.length > 0;
+
+  if (!authed) return <AuthGate onAuth={() => setAuthed(true)} />;
 
   return (
     <>
