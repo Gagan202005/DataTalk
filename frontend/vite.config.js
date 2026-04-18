@@ -13,7 +13,7 @@ export default defineConfig({
   },
   server: {
     proxy: {
-      '/api': process.env.VITE_BACKEND_URL || 'http://localhost:8001'
+      '/api': process.env.VITE_BACKEND_URL || 'http://localhost:8000'
     }
   }
 })
