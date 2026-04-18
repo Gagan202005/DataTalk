@@ -206,7 +206,6 @@ def generate_pdf_report(
     semantic_layer=None,
     template_info: dict | None = None,
     attachments: list[dict] | None = None,
-    model_results: list[dict] | None = None,
 ) -> bytes:
     """Generate a structured PDF report and return as bytes."""
 
@@ -490,122 +489,6 @@ def generate_pdf_report(
                     story.append(Paragraph(f"Sources: {', '.join(parsed)}", styles["meta"]))
 
                 _divider(story)
-
-    # ════════════════════════════════════════════════════════════════════════
-    # 5. COMPLIANCE SUMMARY
-    # ════════════════════════════════════════════════════════════════════════
-    all_annotations = []
-    for msg in messages:
-        if msg.get("role") == "assistant":
-            comp = msg.get("compliance") or {}
-            for ann in comp.get("annotations", []):
-                all_annotations.append(ann)
-
-    if all_annotations:
-        _section_heading(story, "Compliance Summary", styles)
-
-        status_counts = {"compliant": 0, "warning": 0, "blocked": 0}
-        for msg in messages:
-            if msg.get("role") == "assistant":
-                comp = msg.get("compliance") or {}
-                s = comp.get("status", "compliant")
-                status_counts[s] = status_counts.get(s, 0) + 1
-
-        story.append(Paragraph(
-            f"Responses reviewed: <b>{sum(status_counts.values())}</b>  |  "
-            f"Compliant: <b>{status_counts['compliant']}</b>  |  "
-            f"Warnings: <b>{status_counts['warning']}</b>  |  "
-            f"Blocked: <b>{status_counts['blocked']}</b>",
-            styles["body"],
-        ))
-        story.append(Spacer(1, 8))
-
-        ann_data = [["Type", "Rule Reference", "Details"]]
-        for ann in all_annotations[:40]:
-            ann_type = ann.get("type", "info")
-            color_map = {"warning": AMBER, "error": HexColor("#ef4444"), "info": GREEN, "blocked": HexColor("#ef4444")}
-            ann_data.append([
-                ann_type.upper(),
-                sanitize_text(ann.get("rule_ref", "—")),
-                sanitize_text(ann.get("message", "")),
-            ])
-
-        ann_table = Table(ann_data, colWidths=[65, 130, 245])
-        ann_table.setStyle(TableStyle([
-            ("BACKGROUND",   (0, 0), (-1, 0), GREEN),
-            ("TEXTCOLOR",    (0, 0), (-1, 0), WHITE),
-            ("FONTNAME",     (0, 0), (-1, 0), "Helvetica-Bold"),
-            ("FONTSIZE",     (0, 0), (-1, -1), 8),
-            ("GRID",         (0, 0), (-1, -1), 0.4, GRAY200),
-            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [HexColor("#f0fdf4"), WHITE]),
-            ("TOPPADDING",   (0, 0), (-1, -1), 4),
-            ("BOTTOMPADDING",(0, 0), (-1, -1), 4),
-            ("WORDWRAP",     (2, 1), (2, -1), True),
-        ]))
-        story.append(ann_table)
-        _divider(story)
-
-    # ════════════════════════════════════════════════════════════════════════
-    # 6. MODEL LAB RESULTS
-    # ════════════════════════════════════════════════════════════════════════
-    if model_results:
-        _section_heading(story, "Model Lab Results", styles)
-
-        for run in model_results:
-            use_case_label = run.get("use_case", "Unknown").replace("_", " ").title()
-            models_run = ", ".join(m.replace("_", " ").title() for m in run.get("models_selected", []))
-            story.append(Paragraph(f"<b>{use_case_label}</b>  |  Models: {models_run}  |  Run ID: {run.get('run_id', '—')}", styles["h3"]))
-            story.append(Spacer(1, 4))
-
-            metrics = run.get("metrics", {})
-            if metrics:
-                metric_keys = list(next(iter(metrics.values()), {}).keys())
-                header = ["Metric"] + [m.replace("_", " ").title() for m in metrics.keys()]
-                rows = [header]
-                for mk in metric_keys:
-                    row = [mk.replace("_", " ").title()]
-                    for model_metrics in metrics.values():
-                        val = model_metrics.get(mk)
-                        row.append(f"{val:.3f}" if isinstance(val, float) else str(val) if val is not None else "—")
-                    rows.append(row)
-
-                col_w = [130] + [int(310 / max(len(metrics), 1))] * len(metrics)
-                mt = Table(rows, colWidths=col_w[:len(header)])
-                mt.setStyle(TableStyle([
-                    ("BACKGROUND",   (0, 0), (-1, 0), INDIGO),
-                    ("TEXTCOLOR",    (0, 0), (-1, 0), WHITE),
-                    ("FONTNAME",     (0, 0), (-1, 0), "Helvetica-Bold"),
-                    ("FONTSIZE",     (0, 0), (-1, -1), 8),
-                    ("GRID",         (0, 0), (-1, -1), 0.4, GRAY200),
-                    ("ROWBACKGROUNDS", (0, 1), (-1, -1), [HexColor("#eef2ff"), WHITE]),
-                    ("TOPPADDING",   (0, 0), (-1, -1), 4),
-                    ("BOTTOMPADDING",(0, 0), (-1, -1), 4),
-                    ("ALIGN",        (1, 0), (-1, -1), "CENTER"),
-                ]))
-                story.append(mt)
-                story.append(Spacer(1, 8))
-
-            fi = run.get("feature_importance", [])
-            if fi:
-                fi_data = [["Feature", "Importance"]] + [
-                    [sanitize_text(f["feature"]), f"{f['importance']:.3f}"]
-                    for f in fi[:10]
-                ]
-                fi_table = Table(fi_data, colWidths=[200, 100])
-                fi_table.setStyle(TableStyle([
-                    ("BACKGROUND",   (0, 0), (-1, 0), PURPLE),
-                    ("TEXTCOLOR",    (0, 0), (-1, 0), WHITE),
-                    ("FONTNAME",     (0, 0), (-1, 0), "Helvetica-Bold"),
-                    ("FONTSIZE",     (0, 0), (-1, -1), 8),
-                    ("GRID",         (0, 0), (-1, -1), 0.4, GRAY200),
-                    ("ROWBACKGROUNDS", (0, 1), (-1, -1), [HexColor("#f5f3ff"), WHITE]),
-                    ("TOPPADDING",   (0, 0), (-1, -1), 4),
-                    ("BOTTOMPADDING",(0, 0), (-1, -1), 4),
-                ]))
-                story.append(Paragraph("Top Feature Importances", styles["h3"]))
-                story.append(fi_table)
-
-            _divider(story)
 
     # ════════════════════════════════════════════════════════════════════════
     # FOOTER
