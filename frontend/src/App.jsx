@@ -10,7 +10,6 @@ import SplashScreen from './components/SplashScreen';
 import TopBar from './components/TopBar';
 import StatusBar from './components/StatusBar';
 import ModelLab from './components/ModelLab';
-import FinancialGlobe from './components/FinancialGlobe';
 import { useChat } from './hooks/useChat';
 
 const PROCESSING_STAGES = [
@@ -25,7 +24,6 @@ export default function App() {
   const [sidebarOpen, setSidebarOpen]     = useState(true);
   const [showUpload, setShowUpload]       = useState(false);
   const [modelLabOpen, setModelLabOpen]   = useState(false);
-  const [globeOpen, setGlobeOpen]         = useState(false);
   const [stageIdx, setStageIdx]           = useState(0);
   const [mode, setMode]                   = useState('auto');
   const [webSearch, setWebSearch]         = useState(false);
@@ -105,7 +103,6 @@ export default function App() {
             sessionId={chat.sessionId}
             onExportPDF={chat.exportPDF}
             onOpenModelLab={() => setModelLabOpen(true)}
-            onOpenGlobe={() => setGlobeOpen(true)}
             complianceStatus={complianceStatus}
           />
 
@@ -227,11 +224,6 @@ export default function App() {
         </div>
       </div>
 
-      {/* Financial Globe overlay */}
-      <FinancialGlobe
-        isOpen={globeOpen}
-        onClose={() => setGlobeOpen(false)}
-      />
 
       {/* Model Lab overlay */}
       <ModelLab
