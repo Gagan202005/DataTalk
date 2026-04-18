@@ -51,6 +51,7 @@ async def export_pdf(request: Request, body: ExportRequest):
             semantic_layer=session.get("semantic_layer"),
             template_info=template_info_dict,
             attachments=attachments_list,
+            model_results=session.get("model_results"),
         )
 
         return StreamingResponse(

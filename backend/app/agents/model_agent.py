@@ -124,22 +124,62 @@ def get_available_use_cases() -> List[Dict]:
     return result
 
 
+FEATURE_ALIASES = {
+    "loan_amount":     ["principal_amount", "loan_amount", "amount", "disbursed_amount", "sanctioned_amount"],
+    "tenure_months":   ["tenure_months", "tenure", "loan_term", "term_months", "duration_months"],
+    "ltv_ratio":       ["ltv_ratio", "ltv", "loan_to_value"],
+    "credit_score":    ["credit_score", "cibil_score", "cibil", "fico_score", "score"],
+    "customer_income": ["customer_income", "annual_income", "income", "gross_income"],
+    "collateral_value":["collateral_value", "collateral", "security_value", "asset_value"],
+    "interest_rate":   ["interest_rate", "rate", "roi", "annual_rate"],
+    "account_balance": ["account_balance", "balance", "current_balance", "closing_balance"],
+    "num_products":    ["num_products", "products", "product_count", "no_of_products"],
+    "digital_active":  ["digital_active", "is_digital", "digital_user", "mobile_banking"],
+    "amount":          ["amount", "txn_amount", "transaction_amount", "value"],
+}
+
+
 def auto_map_columns(schema: List[Dict], required_features: List[str]) -> Dict[str, str]:
-    """Auto-map schema columns to required feature names by fuzzy name matching."""
+    """Auto-map schema columns to required feature names using aliases + fuzzy matching."""
     mapping = {}
-    col_names = [c["name"] for c in schema]
-    numeric_cols = [c["name"] for c in schema if c.get("type", "") in ("INTEGER","REAL","FLOAT","NUMERIC","BIGINT","DOUBLE")]
+    all_cols  = [c["name"] for c in schema]
+    # Accept all numeric-ish types including VARCHAR that may contain numbers
+    numeric_cols = [
+        c["name"] for c in schema
+        if c.get("type", "").upper() in ("INTEGER","INT","REAL","FLOAT","NUMERIC","BIGINT","DOUBLE","DECIMAL","NUMBER","SMALLINT","TINYINT")
+    ] or all_cols  # fallback: try all columns if type detection yields nothing
 
     for feat in required_features:
+        # 1. Exact match on all columns
+        if feat in all_cols:
+            mapping[feat] = feat
+            continue
+
+        # 2. Alias list lookup
+        matched = None
+        for alias in FEATURE_ALIASES.get(feat, []):
+            if alias in all_cols:
+                matched = alias
+                break
+            # Case-insensitive alias check
+            for col in all_cols:
+                if col.lower() == alias.lower():
+                    matched = col
+                    break
+            if matched:
+                break
+
+        if matched:
+            mapping[feat] = matched
+            continue
+
+        # 3. Fuzzy substring match on numeric columns
         feat_lower = feat.lower().replace("_", "")
-        best = None
         for col in numeric_cols:
             col_lower = col.lower().replace("_", "")
             if feat_lower == col_lower or feat_lower in col_lower or col_lower in feat_lower:
-                best = col
+                mapping[feat] = col
                 break
-        if best:
-            mapping[feat] = best
 
     return mapping
 
@@ -239,6 +279,28 @@ def run_inference(
     feature_names_path = os.path.join(models_dir, "feature_names.joblib")
     feature_names = joblib.load(feature_names_path) if os.path.exists(feature_names_path) else info["required_features"]
 
+    # Derive missing features where possible before building the matrix
+    df = df.copy()
+
+    # ltv_ratio: outstanding_balance / collateral_value (or loan_amount / collateral_value)
+    if "ltv_ratio" in feature_names and "ltv_ratio" not in column_mapping:
+        num_col = next((c for c in ["outstanding_balance", "principal_amount", "loan_amount", "amount"] if c in df.columns), None)
+        den_col = next((c for c in ["collateral_value", "collateral", "security_value"] if c in df.columns), None)
+        if num_col and den_col:
+            df["_ltv_ratio"] = (df[num_col] / df[den_col].replace(0, np.nan)).fillna(1.5)
+            column_mapping = {**column_mapping, "ltv_ratio": "_ltv_ratio"}
+
+    # tenure_months: derive from disbursement_date / maturity_date if available
+    if "tenure_months" in feature_names and "tenure_months" not in column_mapping:
+        if "disbursement_date" in df.columns and "maturity_date" in df.columns:
+            try:
+                start = pd.to_datetime(df["disbursement_date"], errors="coerce")
+                end   = pd.to_datetime(df["maturity_date"], errors="coerce")
+                df["_tenure_months"] = ((end - start).dt.days / 30.44).fillna(60).clip(1, 360)
+                column_mapping = {**column_mapping, "tenure_months": "_tenure_months"}
+            except Exception:
+                pass
+
     # Build full feature matrix — zero-fill missing features so model never sees wrong shape
     n_rows = len(df)
     X = np.zeros((n_rows, len(feature_names)))
@@ -247,7 +309,7 @@ def run_inference(
     for j, feat in enumerate(feature_names):
         col = column_mapping.get(feat)
         if col and col in df.columns:
-            X[:, j] = df[col].fillna(0).astype(float)
+            X[:, j] = pd.to_numeric(df[col], errors="coerce").fillna(0).astype(float)
             mapped_count += 1
 
     if mapped_count == 0:
@@ -288,16 +350,39 @@ def run_inference(
             proba = model.predict_proba(X)[:, 1] if hasattr(model, "predict_proba") else model.predict(X).astype(float)
             preds = (proba >= 0.5).astype(int)
 
-            # Synthetic labels for metrics (50/50 split by median probability)
-            threshold = float(np.median(proba))
-            y_synth = (proba >= threshold).astype(int)
+            # Derive real ground truth from dataset where possible
+            y_true = None
+            import logging
+            logging.warning(f"[model_agent] use_case={use_case} df.columns={list(df.columns)}")
+            # Default / credit risk: days_past_due >= 90 or NPA classification
+            if use_case in ("default_prediction", "credit_risk"):
+                if "days_past_due" in df.columns:
+                    y_true = (pd.to_numeric(df["days_past_due"], errors="coerce").fillna(0) >= 90).astype(int).values
+                elif "asset_classification" in df.columns:
+                    npa_labels = {"substandard", "doubtful", "loss", "npa", "sma-2"}
+                    y_true = df["asset_classification"].str.lower().isin(npa_labels).astype(int).values
+            # Churn: last_txn_date older than 6 months + low balance
+            elif use_case == "churn_prediction":
+                if "last_txn_date" in df.columns:
+                    try:
+                        last = pd.to_datetime(df["last_txn_date"], errors="coerce")
+                        cutoff = pd.Timestamp.now() - pd.DateOffset(months=6)
+                        y_true = (last < cutoff).astype(int).values
+                    except Exception:
+                        pass
+
+            # Fallback: median split (gives roughly balanced classes for display)
+            if y_true is None:
+                threshold = float(np.median(proba))
+                y_true = (proba >= threshold).astype(int)
+
             from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score
             metrics[model_name] = {
-                "accuracy": round(accuracy_score(y_synth, preds), 4),
-                "precision": round(precision_score(y_synth, preds, zero_division=0), 4),
-                "recall": round(recall_score(y_synth, preds, zero_division=0), 4),
-                "f1": round(f1_score(y_synth, preds, zero_division=0), 4),
-                "auc_roc": round(roc_auc_score(y_synth, proba), 4),
+                "accuracy": round(accuracy_score(y_true, preds), 4),
+                "precision": round(precision_score(y_true, preds, zero_division=0), 4),
+                "recall": round(recall_score(y_true, preds, zero_division=0), 4),
+                "f1": round(f1_score(y_true, preds, zero_division=0), 4),
+                "auc_roc": round(roc_auc_score(y_true, proba), 4),
             }
             scored_sample = [
                 {"row": int(i), "probability": round(float(proba[i]), 4), "prediction": int(preds[i])}

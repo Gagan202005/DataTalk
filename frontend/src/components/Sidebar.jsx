@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
-import { Plus, Trash2, Database, FileSpreadsheet, Download, Lock, Layers, Edit3, BarChart2, ShieldAlert } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Plus, Trash2, Database, FileSpreadsheet, Download, Lock, Layers, Edit3, BarChart2, ShieldAlert, ShieldCheck, FileText } from 'lucide-react';
 import SemanticLayerEditor from './SemanticLayerEditor';
+import { api } from '../services/api';
 
 export default function Sidebar({
   isOpen, fileData, onNewChat, onClearDataset, onExportPDF,
@@ -10,6 +11,14 @@ export default function Sidebar({
 }) {
   const [showEditor, setShowEditor] = useState(false);
   const [expandedTable, setExpandedTable] = useState(null);
+  const [complianceDocs, setComplianceDocs] = useState([]);
+  const [docsExpanded, setDocsExpanded] = useState(false);
+
+  useEffect(() => {
+    api.getComplianceDocuments()
+      .then(r => setComplianceDocs(r.data?.documents || []))
+      .catch(() => {});
+  }, []);
 
   return (
     <>
@@ -187,6 +196,34 @@ export default function Sidebar({
                   )}
                 </div>
               </div>
+
+              {/* Compliance Docs */}
+              {complianceDocs.length > 0 && (
+                <div>
+                  <div
+                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6, cursor: 'pointer' }}
+                    onClick={() => setDocsExpanded(v => !v)}
+                  >
+                    <div className="sidebar-section-label" style={{ marginBottom: 0, display: 'flex', alignItems: 'center', gap: 5 }}>
+                      <ShieldCheck size={10} style={{ color: '#4ade80' }} /> Compliance Docs
+                    </div>
+                    <span style={{ fontSize: 9, color: 'var(--sidebar-muted)' }}>{docsExpanded ? '▲' : '▼'}</span>
+                  </div>
+                  {docsExpanded && (
+                    <div className="sidebar-card" style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                      {complianceDocs.map((doc, i) => (
+                        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <FileText size={9} style={{ color: '#4ade80', flexShrink: 0 }} />
+                          <span style={{ fontSize: 10, color: 'var(--sidebar-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+                            {doc.title || doc.name || doc}
+                          </span>
+                          <span style={{ fontSize: 8, padding: '1px 5px', borderRadius: 3, background: 'rgba(74,222,128,0.12)', color: '#4ade80', flexShrink: 0 }}>loaded</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Clear */}
               <button

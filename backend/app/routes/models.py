@@ -67,4 +67,15 @@ async def run_models(request: Request, body: RunModelsRequest):
 
     run_id = str(uuid.uuid4())[:8]
     result["run_id"] = run_id
+    result["use_case"] = body.use_case
+
+    # Store in session so PDF export can include it
+    session.setdefault("model_results", []).append({
+        "run_id": run_id,
+        "use_case": body.use_case,
+        "models_selected": body.models_selected,
+        "metrics": result.get("metrics", {}),
+        "feature_importance": result.get("feature_importance", []),
+    })
+
     return result
