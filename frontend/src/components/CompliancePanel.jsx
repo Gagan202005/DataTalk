@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
-import { Shield, ChevronDown, ChevronUp, BookOpen, AlertTriangle, Scale, FileText, Lock, Landmark, CreditCard, Users, X } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { Shield, ChevronDown, ChevronUp, BookOpen, AlertTriangle, Scale, FileText, Lock, CreditCard, Users, X, Upload, CheckCircle2 } from 'lucide-react';
 
-const RBI_GUIDELINES = [
+const COMPLIANCE_GUIDELINES = [
   {
     id: 'irac',
     icon: Scale,
@@ -67,7 +67,7 @@ const RBI_GUIDELINES = [
     id: 'fair_practices',
     icon: FileText,
     title: 'Fair Practices Code',
-    subtitle: 'RBI Lending Guidelines',
+    subtitle: 'Ethical Lending Guidelines',
     color: '#3b82f6',
     rules: [
       { label: 'Loan Document Acknowledgement', text: 'Banks are required to provide a written, dated acknowledgement for all submitted loan applications, accompanied by a clear timeline for the processing decision.' },
@@ -107,9 +107,19 @@ const COMPLIANCE_TIPS = [
 export default function CompliancePanel({ isActive, onClose, onAskQuestion }) {
   const [expandedId, setExpandedId] = useState(null);
   const [tipIdx, setTipIdx] = useState(0);
+  const [uploadedDocs, setUploadedDocs] = useState([]);
+  const fileInputRef = useRef(null);
 
-  // Cycle tips
   const nextTip = () => setTipIdx((i) => (i + 1) % COMPLIANCE_TIPS.length);
+
+  const handleFileUpload = (e) => {
+    const files = Array.from(e.target.files);
+    setUploadedDocs((prev) => [
+      ...prev,
+      ...files.map((f) => ({ name: f.name, size: f.size })),
+    ]);
+    e.target.value = '';
+  };
 
   if (!isActive) return null;
 
@@ -119,7 +129,7 @@ export default function CompliancePanel({ isActive, onClose, onAskQuestion }) {
       <div className="compliance-panel-header">
         <div className="compliance-panel-header-left">
           <Shield size={14} className="compliance-panel-icon" />
-          <span className="compliance-panel-title">RBI COMPLIANCE</span>
+          <span className="compliance-panel-title">SECURITY & COMPLIANCE</span>
           <span className="compliance-panel-live-dot" />
         </div>
         <button className="compliance-panel-close" onClick={onClose} title="Close compliance panel">
@@ -135,7 +145,7 @@ export default function CompliancePanel({ isActive, onClose, onAskQuestion }) {
 
       {/* Guideline cards */}
       <div className="compliance-panel-body">
-        {RBI_GUIDELINES.map((g) => {
+        {COMPLIANCE_GUIDELINES.map((g) => {
           const Icon = g.icon;
           const isExpanded = expandedId === g.id;
           return (
@@ -182,12 +192,45 @@ export default function CompliancePanel({ isActive, onClose, onAskQuestion }) {
             </div>
           );
         })}
+
+        {/* Upload compliance document */}
+        <div className="compliance-upload-section">
+          <div className="compliance-upload-header">
+            <Upload size={12} className="compliance-upload-icon" />
+            <span className="compliance-upload-title">Add Your Own Compliance Docs</span>
+          </div>
+          <p className="compliance-upload-desc">
+            Upload your organization's compliance documentation to ensure all operations stay within your defined bounds.
+          </p>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".pdf,.doc,.docx,.txt"
+            multiple
+            style={{ display: 'none' }}
+            onChange={handleFileUpload}
+          />
+          <button className="compliance-upload-btn" onClick={() => fileInputRef.current?.click()}>
+            <Upload size={11} />
+            Upload Document
+          </button>
+          {uploadedDocs.length > 0 && (
+            <div className="compliance-uploaded-list">
+              {uploadedDocs.map((doc, i) => (
+                <div key={i} className="compliance-uploaded-item">
+                  <CheckCircle2 size={10} className="compliance-uploaded-check" />
+                  <span className="compliance-uploaded-name">{doc.name}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Footer */}
       <div className="compliance-panel-footer">
-        <Landmark size={10} />
-        <span>Based on RBI Master Circulars, PMLA 2002 & DPDP Act 2023</span>
+        <Shield size={10} />
+        <span>Regulatory & organizational compliance monitoring</span>
       </div>
     </div>
   );
