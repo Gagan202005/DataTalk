@@ -1680,6 +1680,142 @@ body {
 }
 .col-mapping-select:focus { border-color: rgba(59,130,246,0.4); }
 
+/* ── Model Lab security bar ── */
+.model-lab-secure-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  border-radius: 99px;
+  font-size: 10px;
+  font-weight: 600;
+  background: rgba(34,197,94,0.1);
+  border: 1px solid rgba(34,197,94,0.25);
+  color: #22c55e;
+}
+.model-lab-security-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 20px;
+  background: rgba(34,197,94,0.05);
+  border-bottom: 1px solid rgba(34,197,94,0.15);
+  font-size: 11px;
+  color: rgba(34,197,94,0.8);
+  flex-wrap: wrap;
+}
+.model-lab-security-dot {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: rgba(34,197,94,0.4);
+  flex-shrink: 0;
+}
+
+/* ── BYO model card ── */
+.use-case-card-byo {
+  border-style: dashed !important;
+  border-color: rgba(34,197,94,0.25) !important;
+  background: rgba(34,197,94,0.03) !important;
+}
+.use-case-card-byo:hover {
+  border-color: rgba(34,197,94,0.5) !important;
+  background: rgba(34,197,94,0.07) !important;
+}
+.use-case-card-byo.selected {
+  border-color: #22c55e !important;
+  background: rgba(34,197,94,0.1) !important;
+}
+.use-case-model-tag.byo-tag {
+  background: rgba(34,197,94,0.08);
+  color: #22c55e;
+  border-color: rgba(34,197,94,0.2);
+}
+
+/* ── BYO upload panel ── */
+.byo-upload-panel {
+  margin-bottom: 16px;
+  padding: 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(34,197,94,0.2);
+  background: rgba(34,197,94,0.04);
+}
+.byo-upload-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #22c55e;
+  margin-bottom: 4px;
+}
+.byo-upload-desc {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+  line-height: 1.5;
+}
+.byo-upload-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.byo-drop-zone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 16px 12px;
+  border-radius: 8px;
+  border: 1.5px dashed var(--border-strong);
+  background: var(--bg-subtle);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-align: center;
+  min-height: 90px;
+}
+.byo-drop-zone:hover {
+  border-color: rgba(34,197,94,0.4);
+  background: rgba(34,197,94,0.05);
+}
+.byo-drop-zone.has-file {
+  border-color: rgba(34,197,94,0.5);
+  background: rgba(34,197,94,0.07);
+  border-style: solid;
+}
+.byo-drop-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 3px;
+}
+.byo-drop-hint {
+  font-size: 10px;
+  color: var(--text-xmuted);
+  line-height: 1.4;
+  word-break: break-all;
+}
+.byo-file-ok {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 6px;
+  font-size: 10px;
+  font-weight: 600;
+  color: #22c55e;
+}
+
+/* ── BYO registered banner ── */
+.byo-registered-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 9px;
+  background: rgba(34,197,94,0.07);
+  border: 1px solid rgba(34,197,94,0.2);
+}
+
 /* ── Sample dataset grid (welcome screen) ── */
 .sample-dataset-grid {
   display: flex;

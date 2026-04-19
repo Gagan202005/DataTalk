@@ -87,11 +87,11 @@ export default function TopBar({
       <button
         className="topbar-btn topbar-model-btn"
         onClick={onOpenModelLab}
-        title="Open ML Model Lab"
+        title="Secure Model Lab — run models privately in your environment"
         disabled={!hasData}
       >
         <FlaskConical size={14} />
-        <span>Model Lab</span>
+        <span>Secure Model Lab</span>
       </button>
 
       {/* Export PDF */}
