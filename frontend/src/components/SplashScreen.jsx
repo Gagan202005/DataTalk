@@ -43,9 +43,6 @@ export default function SplashScreen({ onComplete }) {
       position: fixed; inset: 0; z-index: 100;
       background: #000;
       font-family: 'Inter', sans-serif;
-      display: flex;
-      align-items: center;
-      justify-content: center;
       overflow-y: auto;
       transition: opacity 0.5s ease;
     }
@@ -75,11 +72,15 @@ export default function SplashScreen({ onComplete }) {
       display: flex;
       flex-direction: column;
       align-items: center;
+      justify-content: center;
       text-align: center;
       gap: 0;
+      min-height: 100vh;
       max-width: 860px;
       width: 100%;
+      margin: 0 auto;
       padding: 48px 24px 56px;
+      box-sizing: border-box;
     }
 
     /* Badge row */
