@@ -240,7 +240,7 @@ async def process_question(
         "confidence": confidence,
         "sources": sources,
         "suggestions": suggestions,
-        "web_context": parallel_web_results if parallel_web_results else (web_results if web_search_toggle else []),
+        "web_context": web_results,
         "compliance": compliance_result,
         "from_cache": False,
     }
