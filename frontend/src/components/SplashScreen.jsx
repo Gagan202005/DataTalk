@@ -374,7 +374,7 @@ export default function SplashScreen({ onComplete }) {
             <button className="lp-cta" onClick={handleOpen}>
               Open <ArrowRight size={16} className="arr" />
             </button>
-            <span className="lp-footnote">No setup required · Password protected</span>
+            <span className="lp-footnote">No setup required · No account needed</span>
           </div>
 
         </div>
