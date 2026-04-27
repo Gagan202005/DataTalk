@@ -202,7 +202,7 @@ export default function Sidebar({
             <div style={{ textAlign: 'center', padding: '32px 0' }}>
               <FileSpreadsheet size={28} style={{ color: 'var(--sidebar-muted)', margin: '0 auto 8px' }} />
               <p style={{ fontSize: 11, color: 'var(--sidebar-muted)' }}>No dataset loaded</p>
-              <p style={{ fontSize: 10, color: '#3a3f52', marginTop: 3 }}>Upload a CSV to get started</p>
+              <p style={{ fontSize: 10, color: 'var(--sidebar-muted)', marginTop: 3 }}>Upload a CSV to get started</p>
             </div>
           )}
 
@@ -212,7 +212,7 @@ export default function Sidebar({
               <Lock size={11} style={{ color: '#4ade80' }} />
               <span style={{ fontSize: 10, fontWeight: 600, color: '#4ade80' }}>Privacy secured</span>
             </div>
-            <p style={{ fontSize: 9, color: '#3a5a44', lineHeight: 1.5 }}>Your data never leaves this server. All processing is local.</p>
+            <p style={{ fontSize: 9, color: 'var(--sidebar-muted)', lineHeight: 1.5 }}>Your data never leaves this server. All processing is local.</p>
           </div>
         </div>
 

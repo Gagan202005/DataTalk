@@ -1,12 +1,8 @@
 """
-Confidence Score Calculator.
-Measures answer reliability across 4 weighted dimensions:
-  - Row coverage (30%): How many rows contributed to the answer
-  - Data completeness (30%): Missing value ratio in used columns
-  - Schema match (20%): Did the question map to known columns?
-  - Web corroboration (20%): Were relevant web results found?
+Confidence Score Calculator — 5 weighted dimensions:
+  row_coverage (25%), data_completeness (25%), schema_match (20%),
+  web_corroboration (15%), compliance_check (15%)
 """
-from typing import Optional
 
 
 def calculate_confidence(
@@ -17,19 +13,13 @@ def calculate_confidence(
     question: str = "",
     web_results: list[dict] | None = None,
     sql_error: str | None = None,
+    compliance_status: str = "compliant",
 ) -> dict:
-    """
-    Calculate a confidence score for an answer.
-
-    Returns:
-        Dict with score (0-100), level (High/Medium/Low), and breakdown.
-    """
     if not columns_used:
         columns_used = []
     if not schema:
         schema = []
 
-    # If there was a SQL error, low confidence
     if sql_error:
         return {
             "score": 20,
@@ -39,60 +29,46 @@ def calculate_confidence(
                 "data_completeness": 0,
                 "schema_match": 20,
                 "web_corroboration": 0,
+                "compliance_check": 0,
             },
         }
 
-    # 1. Row Coverage (30% weight)
-    if total_rows > 0:
-        coverage_ratio = min(1.0, rows_used / total_rows)
-        row_score = coverage_ratio * 100
-    else:
-        row_score = 0
+    # 1. Row Coverage (25%)
+    row_score = min(1.0, rows_used / total_rows) * 100 if total_rows > 0 else 0
 
-    # 2. Data Completeness (30% weight)
+    # 2. Data Completeness (25%)
     if columns_used and schema:
         schema_map = {col["name"].lower(): col for col in schema}
-        missing_pcts = []
-        for col_name in columns_used:
-            col_info = schema_map.get(col_name.lower(), {})
-            missing_pcts.append(col_info.get("missing_pct", 0))
-        avg_missing = sum(missing_pcts) / max(len(missing_pcts), 1)
-        completeness_score = max(0, 100 - avg_missing)
+        missing_pcts = [schema_map.get(c.lower(), {}).get("missing_pct", 0) for c in columns_used]
+        completeness_score = max(0, 100 - sum(missing_pcts) / max(len(missing_pcts), 1))
     else:
-        completeness_score = 50  # Default when unknown
+        completeness_score = 50
 
-    # 3. Schema Match (20% weight)
+    # 3. Schema Match (20%)
     if columns_used:
         known_columns = {col["name"].lower() for col in schema}
         matched = sum(1 for c in columns_used if c.lower() in known_columns)
         schema_score = (matched / max(len(columns_used), 1)) * 100
     else:
-        # Check if any schema column names appear in the question
         question_lower = question.lower()
         matches = sum(1 for col in schema if col["name"].lower() in question_lower)
         schema_score = min(100, matches * 25) if matches else 30
 
-    # 4. Web Corroboration (20% weight)
-    web_score = 0
-    if web_results:
-        # Each relevant article adds 25%, max 100%
-        web_score = min(100, len(web_results) * 25)
+    # 4. Web Corroboration (15%)
+    web_score = min(100, len(web_results) * 25) if web_results else 0
 
-    # Weighted total
+    # 5. Compliance Check (15%)
+    compliance_score = {"compliant": 100, "warning": 50, "blocked": 0}.get(compliance_status, 100)
+
     total = (
-        row_score * 0.30
-        + completeness_score * 0.30
+        row_score * 0.25
+        + completeness_score * 0.25
         + schema_score * 0.20
-        + web_score * 0.20
+        + web_score * 0.15
+        + compliance_score * 0.15
     )
 
-    # Determine level
-    if total >= 75:
-        level = "High"
-    elif total >= 50:
-        level = "Medium"
-    else:
-        level = "Low"
+    level = "High" if total >= 75 else ("Medium" if total >= 50 else "Low")
 
     return {
         "score": round(total),
@@ -102,5 +78,6 @@ def calculate_confidence(
             "data_completeness": round(completeness_score),
             "schema_match": round(schema_score),
             "web_corroboration": round(web_score),
+            "compliance_check": round(compliance_score),
         },
     }

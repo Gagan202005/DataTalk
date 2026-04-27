@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { Database, FileSpreadsheet, Copy, Check, AlertCircle, ChevronRight } from 'lucide-react';
+import { Database, FileSpreadsheet, Copy, Check, AlertCircle, ChevronRight, ChevronDown, ChevronUp, BarChart2 } from 'lucide-react';
 import DataSummary from './DataSummary';
 import ChartRenderer from './ChartRenderer';
 import ConfidenceScore from './ConfidenceScore';
+import ComplianceBadge from './ComplianceBadge';
+import WebContextCard from './WebContextCard';
 
 export default function ChatMessage({ message, onSendMessage }) {
   const isUser   = message.role === 'user';
@@ -21,7 +23,6 @@ export default function ChatMessage({ message, onSendMessage }) {
         <div className="msg-system-card">
           <MarkdownContent content={message.content} />
 
-          {/* Anomalies */}
           {message.anomalies && message.anomalies.length > 0 && (
             <div className="info-card anomaly-card" style={{ textAlign: 'left' }}>
               <div className="info-card-label">{message.anomalies.length} anomaly group{message.anomalies.length > 1 ? 's' : ''} detected</div>
@@ -45,17 +46,12 @@ export default function ChatMessage({ message, onSendMessage }) {
             </div>
           )}
 
-          {/* Starter questions */}
           {message.starterQuestions && message.starterQuestions.length > 0 && (
             <div className="info-card starter-card" style={{ textAlign: 'left', marginTop: 10 }}>
               <div className="info-card-label">Suggested questions</div>
               <div className="starter-questions-grid">
                 {message.starterQuestions.map((q, i) => (
-                  <button
-                    key={i}
-                    className="starter-question-btn"
-                    onClick={() => onSendMessage && onSendMessage(q)}
-                  >
+                  <button key={i} className="starter-question-btn" onClick={() => onSendMessage && onSendMessage(q)}>
                     <ChevronRight size={11} style={{ flexShrink: 0, opacity: 0.5 }} />
                     {q}
                   </button>
@@ -89,13 +85,14 @@ export default function ChatMessage({ message, onSendMessage }) {
 
   /* ── AI / assistant message ── */
   const AGENT_MAP = {
-    sql_agent:    { label: 'SQL Agent',   cls: 'sql'     },
-    code_agent:   { label: 'Code Agent',  cls: 'code'    },
-    search_agent: { label: 'Web Search',  cls: 'search'  },
-    general:      { label: 'DataTalk',    cls: 'general' },
+    sql_agent:         { label: 'SQL',        cls: 'sql'        },
+    code_agent:        { label: 'Analysis',   cls: 'code'       },
+    search_agent:      { label: 'Web Search', cls: 'search'     },
+    general:           { label: 'DataTalk',   cls: 'general'    },
+    compliance_agent:  { label: 'Compliance', cls: 'compliance' },
   };
-  const agentInfo  = AGENT_MAP[message.agent_used] || { label: 'DataTalk', cls: 'general' };
-  const hasChart   = message.chart || message.matplotlib_image;
+  const agentInfo = AGENT_MAP[message.agent_used] || { label: 'DataTalk', cls: 'general' };
+  const hasChart  = message.chart || message.matplotlib_image;
 
   return (
     <div className="msg-ai">
@@ -104,6 +101,7 @@ export default function ChatMessage({ message, onSendMessage }) {
       </div>
 
       <div className="msg-ai-body">
+        {/* Header row */}
         <div className="msg-ai-header">
           <span className="msg-ai-name">DataTalk</span>
           {!isError && message.agent_used && (
@@ -113,76 +111,141 @@ export default function ChatMessage({ message, onSendMessage }) {
           {isError && <AlertCircle size={12} style={{ color: 'var(--error)', marginLeft: 'auto' }} />}
         </div>
 
-        {/* File upload summary */}
-        {message.type === 'file-upload' && message.fileData && (
-          <div style={{ marginBottom: 10 }}>
-            <DataSummary data={message.fileData} />
+        {/* Rich card wrapper */}
+        <div className="msg-ai-card">
+          {/* Main text answer */}
+          <div className={`card-section${isError ? ' is-error' : ''}`}>
+            <div className="card-section-body">
+              <MarkdownContent content={message.content} />
+            </div>
           </div>
-        )}
 
-        {/* Main content */}
-        <div className={`msg-ai-content${isError ? ' is-error' : ''}`}>
-          <MarkdownContent content={message.content} />
+          {/* SQL block */}
+          {message.sql_query && (
+            <CollapsibleSection label="SQL Query" defaultOpen={false}>
+              <SQLBlock code={message.sql_query} />
+            </CollapsibleSection>
+          )}
+
+          {/* Python code */}
+          {message.python_code && (
+            <CollapsibleSection label="Python Code" defaultOpen={false}>
+              <div className="code-block">
+                <div className="code-block-header"><span>Python</span></div>
+                <pre className="code-block-body"><code>{message.python_code}</code></pre>
+              </div>
+            </CollapsibleSection>
+          )}
+
+          {/* Data table */}
+          {message.data && message.data.length > 0 && (
+            <CollapsibleSection label={`Results — ${message.data.length} rows`} defaultOpen>
+              <DataTable data={message.data} />
+            </CollapsibleSection>
+          )}
+
+          {/* Chart */}
+          {hasChart && (
+            <CollapsibleSection label="Chart" defaultOpen>
+              <ChartRenderer
+                chart={message.chart}
+                matplotlib_image={message.matplotlib_image}
+                onExplain={onSendMessage
+                  ? () => {
+                      if (message.chart?.data) {
+                        const sample = JSON.stringify(message.chart.data.slice(0, 10));
+                        onSendMessage(`Explain this chart in detail — describe the key patterns, trends, and insights. Chart data: ${sample}`);
+                      } else {
+                        onSendMessage('Explain this chart in detail — describe the key patterns, trends, and insights.');
+                      }
+                    }
+                  : undefined}
+              />
+            </CollapsibleSection>
+          )}
+
+          {/* Web context */}
+          {message.web_context && message.web_context.length > 0 && (
+            <div className="card-section">
+              <div className="card-section-body">
+                <WebContextCard results={message.web_context} />
+              </div>
+            </div>
+          )}
+
+          {/* Compliance */}
+          {message.compliance && (
+            <div className="card-section">
+              <div className="card-section-body">
+                <ComplianceBadge compliance={message.compliance} />
+              </div>
+            </div>
+          )}
+
+          {/* Confidence */}
+          {message.confidence && (
+            <div className="card-section">
+              <div className="card-section-body">
+                <ConfidenceScore confidence={message.confidence} />
+              </div>
+            </div>
+          )}
+
+          {/* Sources */}
+          {message.sources && message.sources.length > 0 && (
+            <div className="card-section">
+              <div className="card-section-body">
+                <div className="sources-row">
+                  <span className="source-label">Sources</span>
+                  {message.sources.map((src, i) => {
+                    if (typeof src === 'object' && src.url) {
+                      return (
+                        <a key={i} href={src.url} target="_blank" rel="noopener noreferrer" className="source-pill" title={src.snippet}>
+                          {src.title || src.name || `Source ${i + 1}`}
+                        </a>
+                      );
+                    }
+                    return (
+                      <span key={i} className="source-pill">
+                        {typeof src === 'string' ? src : src.name || src.column || `Source ${i + 1}`}
+                      </span>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Follow-up suggestions */}
+          {message.suggestions && message.suggestions.length > 0 && (
+            <div className="card-section">
+              <div className="card-section-body">
+                <div className="suggestion-strip">
+                  {message.suggestions.map((s, i) => (
+                    <button key={i} className="suggestion-chip" onClick={() => onSendMessage && onSendMessage(s)}>
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
-
-        {/* Data table */}
-        {message.data && message.data.length > 0 && (
-          <DataTable data={message.data} />
-        )}
-
-        {/* SQL */}
-        {message.sql_query && (
-          <SQLBlock code={message.sql_query} />
-        )}
-
-        {/* Chart */}
-        {hasChart && (
-          <ChartRenderer
-            chart={message.chart}
-            matplotlib_image={message.matplotlib_image}
-            onExplain={message.matplotlib_image && onSendMessage
-              ? () => onSendMessage('Explain this chart — describe the key patterns, trends, and insights.')
-              : undefined}
-          />
-        )}
-
-        {/* Confidence */}
-        {message.confidence && (
-          <ConfidenceScore confidence={message.confidence} />
-        )}
-
-        {/* Sources */}
-        {message.sources && message.sources.length > 0 && (
-          <div className="sources-row">
-            <span className="source-label">Sources</span>
-            {message.sources.map((src, i) => {
-              if (typeof src === 'object' && src.url) {
-                return (
-                  <a key={i} href={src.url} target="_blank" rel="noopener noreferrer" className="source-pill" title={src.snippet}>
-                    {src.title || src.name || `Source ${i + 1}`}
-                  </a>
-                );
-              }
-              return (
-                <span key={i} className="source-pill">
-                  {typeof src === 'string' ? src : src.name || src.column || `Source ${i + 1}`}
-                </span>
-              );
-            })}
-          </div>
-        )}
-
-        {/* Follow-up suggestions */}
-        {message.suggestions && message.suggestions.length > 0 && (
-          <div className="suggestion-strip" style={{ marginTop: 10 }}>
-            {message.suggestions.map((s, i) => (
-              <button key={i} className="suggestion-chip" onClick={() => onSendMessage && onSendMessage(s)}>
-                {s}
-              </button>
-            ))}
-          </div>
-        )}
       </div>
+    </div>
+  );
+}
+
+/* ── Collapsible section ── */
+function CollapsibleSection({ label, defaultOpen = true, children }) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className="card-section">
+      <button className="card-section-header" onClick={() => setOpen(v => !v)} type="button">
+        <span>{label}</span>
+        {open ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+      </button>
+      {open && <div className="card-section-body">{children}</div>}
     </div>
   );
 }
@@ -199,11 +262,7 @@ function MarkdownContent({ content }) {
         ol:     ({ children }) => <ol>{children}</ol>,
         li:     ({ children }) => <li>{children}</li>,
         code: ({ children, className }) => {
-          if (className) {
-            return (
-              <pre><code>{children}</code></pre>
-            );
-          }
+          if (className) return <pre><code>{children}</code></pre>;
           return <code>{children}</code>;
         },
         table: ({ children }) => (
@@ -220,7 +279,7 @@ function MarkdownContent({ content }) {
   );
 }
 
-/* ── SQL block ── */
+/* ── SQL block with copy button ── */
 function SQLBlock({ code }) {
   const [copied, setCopied] = useState(false);
   const copy = () => {
@@ -230,7 +289,7 @@ function SQLBlock({ code }) {
     });
   };
   return (
-    <div className="code-block" style={{ marginTop: 10 }}>
+    <div className="code-block">
       <div className="code-block-header">
         <span>SQL</span>
         <button className="code-block-copy" onClick={copy}>
@@ -248,12 +307,10 @@ function DataTable({ data }) {
   if (!data || data.length === 0) return null;
   const headers = Object.keys(data[0]);
   return (
-    <div className="data-table-wrap" style={{ marginTop: 10, maxHeight: 280, overflowY: 'auto' }}>
+    <div className="data-table-wrap" style={{ maxHeight: 280, overflowY: 'auto' }}>
       <table className="data-table">
         <thead>
-          <tr>
-            {headers.map(h => <th key={h}>{h}</th>)}
-          </tr>
+          <tr>{headers.map(h => <th key={h}>{h}</th>)}</tr>
         </thead>
         <tbody>
           {data.slice(0, 100).map((row, i) => (

@@ -57,14 +57,14 @@ export default function SemanticLayerEditor({ isOpen, onClose, semanticLayer, on
       {/* Modal — solid white, no glassmorphism */}
       <div style={{
         position: 'relative', width: '100%', maxWidth: 720, maxHeight: '88vh',
-        background: '#ffffff', border: '1px solid var(--border)',
+        background: 'var(--bg-card)', border: '1px solid var(--border)',
         borderRadius: 16, boxShadow: '0 20px 60px rgba(0,0,0,0.18)',
         display: 'flex', flexDirection: 'column', overflow: 'hidden',
         animation: 'fadeInUp 0.2s ease-out both',
       }}>
 
         {/* Header */}
-        <div style={{ padding: '20px 24px 16px', borderBottom: '1px solid var(--border)', background: '#fafaf9' }}>
+        <div style={{ padding: '20px 24px 16px', borderBottom: '1px solid var(--border)', background: 'var(--bg-subtle)' }}>
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <div style={{ width: 40, height: 40, borderRadius: 10, background: 'var(--accent-light)', border: '1px solid rgba(79,70,229,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -94,7 +94,7 @@ export default function SemanticLayerEditor({ isOpen, onClose, semanticLayer, on
 
           {showInfo && (
             <div style={{ marginTop: 14, padding: '12px 16px', borderRadius: 10, background: 'var(--accent-light)', border: '1px solid rgba(79,70,229,0.15)' }}>
-              <p style={{ fontSize: 13, color: '#3730a3', lineHeight: 1.65 }}>
+              <p style={{ fontSize: 13, color: 'var(--accent)', lineHeight: 1.65 }}>
                 <strong>What is the Semantic Layer?</strong><br />
                 Define reusable business metrics using SQL expressions — e.g.{' '}
                 <code style={{ background: 'rgba(79,70,229,0.1)', padding: '1px 5px', borderRadius: 4, fontSize: 12, fontFamily: 'monospace' }}>Total Revenue = SUM(amount)</code>.
@@ -197,7 +197,7 @@ export default function SemanticLayerEditor({ isOpen, onClose, semanticLayer, on
                   value={newMetric[key]}
                   onChange={e => setNewMetric(prev => ({ ...prev, [key]: e.target.value }))}
                   style={{
-                    width: '100%', padding: '10px 13px', borderRadius: 8, background: '#ffffff',
+                    width: '100%', padding: '10px 13px', borderRadius: 8, background: 'var(--bg-card)',
                     border: '1px solid var(--border-strong)', fontSize: 13.5,
                     color: 'var(--text-primary)', outline: 'none', boxSizing: 'border-box',
                     fontFamily: mono ? '"JetBrains Mono", monospace' : 'inherit',
@@ -235,7 +235,7 @@ export default function SemanticLayerEditor({ isOpen, onClose, semanticLayer, on
         </div>
 
         {/* Footer */}
-        <div style={{ padding: '14px 24px', borderTop: '1px solid var(--border)', background: '#fafaf9', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ padding: '14px 24px', borderTop: '1px solid var(--border)', background: 'var(--bg-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <span style={{ fontSize: 11, color: 'var(--text-xmuted)' }}>
             {metrics.length} metric{metrics.length !== 1 ? 's' : ''} defined
           </span>
