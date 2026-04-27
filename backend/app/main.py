@@ -1,17 +1,14 @@
 """
 DataTalk Backend — FastAPI Application Entry Point
-Handles CORS, session management, and route mounting.
 """
 import os
 import sys
-import uuid
 import io
 from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-# Force UTF-8 on Windows stdout/stderr so emoji in print() never crashes the process
 if sys.stdout and hasattr(sys.stdout, "buffer"):
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
 if sys.stderr and hasattr(sys.stderr, "buffer"):
@@ -19,27 +16,35 @@ if sys.stderr and hasattr(sys.stderr, "buffer"):
 
 load_dotenv()
 
-# Import routes
 from app.routes import upload, chat, semantic, export, preprocess
+from app.routes import models as models_router
+from app.routes import sample_data as sample_data_router
+from app.routes import compliance as compliance_router
 
-# In-memory session store (metadata only — actual data is in .duckdb files)
 sessions = {}
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Startup and shutdown lifecycle."""
     from app.core.database import _SESSIONS_DIR
-    os.makedirs(_SESSIONS_DIR, exist_ok=True)  # Ensure sessions dir exists on startup
-    os.environ.setdefault("PYTHONIOENCODING", "utf-8")  # Prevent cp1252 emoji crashes
-    print("DataTalk Backend starting...")
+    os.makedirs(_SESSIONS_DIR, exist_ok=True)
+    os.environ.setdefault("PYTHONIOENCODING", "utf-8")
+
+    # Initialize compliance knowledge base
+    from app.core.compliance_kb import get_compliance_kb
+    kb = get_compliance_kb()
+    docs_dir = os.path.join(os.path.dirname(__file__), "compliance_docs")
+    n_chunks = kb.load_documents(docs_dir)
+    app.state.compliance_kb = kb
+    print(f"DataTalk Backend starting... Compliance KB: {n_chunks} chunks loaded from {docs_dir}")
+
     yield
-    # Cleanup: close all DuckDB connections and delete session .duckdb files
+
     for sid in list(sessions.keys()):
         if "db" in sessions[sid]:
             try:
                 sessions[sid]["db"].close()
-                sessions[sid]["db"].delete_file()  # Remove .duckdb file from disk
+                sessions[sid]["db"].delete_file()
             except Exception:
                 pass
     sessions.clear()
@@ -48,54 +53,50 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="DataTalk API",
-    description="AI-powered data analysis backend",
-    version="1.0.0",
+    description="AI-powered financial analyst copilot",
+    version="2.0.0",
     lifespan=lifespan,
 )
 
-# CORS — origins from CORS_ORIGINS env var (comma-separated), fallback to localhost for dev
-_raw_origins = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://localhost:5173")
-_allowed_origins = [o.strip() for o in _raw_origins.split(",") if o.strip()]
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],           # Allow everything
-    allow_credentials=False,       # Important: See note below
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Mount routes
 app.include_router(upload.router, prefix="/api")
 app.include_router(preprocess.router, prefix="/api")
 app.include_router(chat.router, prefix="/api")
 app.include_router(semantic.router, prefix="/api")
 app.include_router(export.router, prefix="/api")
+app.include_router(models_router.router, prefix="/api")
+app.include_router(sample_data_router.router, prefix="/api")
+app.include_router(compliance_router.router, prefix="/api")
 
 
 @app.get("/api/health")
 async def health_check():
-    return {"status": "ok", "sessions": len(sessions)}
+    from app.core.compliance_kb import get_compliance_kb
+    kb = get_compliance_kb()
+    return {
+        "status": "ok",
+        "sessions": len(sessions),
+        "compliance_kb_loaded": kb.is_loaded,
+        "compliance_chunks": len(kb.chunks) if kb.is_loaded else 0,
+    }
 
 
 @app.get("/api/debug-sandbox")
 async def debug_sandbox():
-    """Debug endpoint: run sandbox test inside server process and return result."""
     import pandas as pd
     from app.utils.code_sandbox import execute_code
-
-    df = pd.DataFrame({"amount": [100, 200, 300, 400], "balance": [1000, 2000, 3000, 4000], "age": [25, 35, 45, 55]})
+    df = pd.DataFrame({"amount": [100, 200, 300, 400], "balance": [1000, 2000, 3000, 4000]})
     code = """
-import io
-import base64
-import matplotlib.pyplot as plt
-import seaborn as sns
-
-corr = df.select_dtypes(include="number").corr()
-plt.figure(figsize=(6, 4))
-sns.heatmap(corr, annot=True, cmap="coolwarm")
-plt.title("Test Heatmap")
-
+import io, base64, matplotlib.pyplot as plt
+plt.figure(figsize=(6,4))
+plt.bar(["Q1","Q2","Q3","Q4"], df["amount"].tolist())
 buf = io.BytesIO()
 plt.savefig(buf, format="png", dpi=100, bbox_inches="tight", facecolor="#111827")
 buf.seek(0)
@@ -104,15 +105,7 @@ plt.close()
 print("sandbox ok")
 """
     result = execute_code(code, dataframe=df)
-    return {
-        "success": result.success,
-        "figures_count": len(result.figures),
-        "figure_length": len(result.figures[0]) if result.figures else 0,
-        "error": result.error,
-        "stderr": result.stderr[:300] if result.stderr else None,
-        "stdout": result.stdout,
-    }
+    return {"success": result.success, "figures_count": len(result.figures), "error": result.error}
 
 
-# Make sessions accessible to routes via app.state
 app.state.sessions = sessions

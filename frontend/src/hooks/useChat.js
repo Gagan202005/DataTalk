@@ -1,7 +1,6 @@
 import { useState, useCallback, useRef } from 'react';
 import { api } from '../services/api';
 
-// Generate 4 smart starter questions from a flat schema array
 function generateStarterQuestions(schema) {
   const numeric = schema.filter(c => ['INTEGER', 'REAL', 'FLOAT', 'NUMERIC'].includes(c.type));
   const text    = schema.filter(c => c.type === 'TEXT');
@@ -29,18 +28,16 @@ function generateStarterQuestions(schema) {
 export function useChat() {
   const [messages, setMessages]           = useState([]);
   const [sessionId, setSessionId]         = useState(null);
-  const [tables, setTables]               = useState({}); // { tableName: { schema, dataQuality, anomalies, filename, rowCount, colCount } }
+  const [tables, setTables]               = useState({});
   const [isLoading, setIsLoading]         = useState(false);
   const [error, setError]                 = useState(null);
   const [semanticLayer, setSemanticLayer] = useState([]);
   const [sensitiveColumns, setSensitiveColumns] = useState([]);
-  const [preprocessResult, setPreprocessResult] = useState(null); // pending wizard data
+  const [preprocessResult, setPreprocessResult] = useState(null);
   const messagesEndRef = useRef(null);
 
-  // Derived flat schema across all tables
   const schema = Object.values(tables).flatMap(t => t.schema || []);
 
-  // Derived fileInfo for Sidebar backward compat (first table)
   const fileInfo = Object.keys(tables).length > 0
     ? {
         name: Object.values(tables)[0].filename,
@@ -49,26 +46,23 @@ export function useChat() {
       }
     : null;
 
-  // Derived dataQuality (first table)
   const dataQuality = Object.keys(tables).length > 0
     ? Object.values(tables)[0].dataQuality
     : null;
 
-  // Derived anomalies (all tables combined)
   const anomalies = Object.values(tables).flatMap(t => t.anomalies || []);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  // Called after /preprocess/apply completes for any file
-  const _finishUpload = useCallback((data, file, uploadedAnomalies, report = null, isAdditional = false) => {
+  const _finishUpload = useCallback((data, filename, uploadedAnomalies, report = null, isAdditional = false) => {
     const tableName  = data.table_name;
     const tableEntry = {
       schema:      data.schema,
       dataQuality: data.data_quality,
       anomalies:   uploadedAnomalies,
-      filename:    file.name,
+      filename:    filename,
       rowCount:    data.row_count,
       colCount:    data.column_count,
     };
@@ -84,9 +78,8 @@ export function useChat() {
       });
     }
 
-    // Build system message
     const action = isAdditional ? 'Added' : 'Loaded';
-    let systemContent = `📊 ${action} **${file.name}** as table \`${tableName}\` — ${data.row_count.toLocaleString()} rows, ${data.column_count} columns.`;
+    let systemContent = `📊 ${action} **${filename}** as table \`${tableName}\` — ${data.row_count.toLocaleString()} rows, ${data.column_count} columns.`;
 
     if (uploadedAnomalies.length > 0) {
       systemContent += `\n\n🚨 **${uploadedAnomalies.length} anomaly${uploadedAnomalies.length > 1 ? ' groups' : ''} detected:**\n` +
@@ -107,18 +100,17 @@ export function useChat() {
         preprocessing_report: report,
         starterQuestions,
       };
-      // First file: set messages. Additional files: append system message.
       return isAdditional ? [...prev, systemMsg] : [systemMsg];
     });
   }, []);
 
-  // Phase 1: Upload file — pass sessionId if one exists (multi-table flow)
+  // Phase 1: Upload file
   const handleUpload = useCallback(async (file) => {
     setIsLoading(true);
     setError(null);
     try {
       const data = await api.uploadFile(file, sessionId);
-      setPreprocessResult({ ...data, _file: file });
+      setPreprocessResult({ ...data, _file: file, _filename: file.name });
     } catch (err) {
       setError(err.response?.data?.detail || 'Failed to upload file. Please try a valid CSV or Excel file.');
     } finally {
@@ -128,27 +120,27 @@ export function useChat() {
 
   // Called by PreprocessingWizard when user approves/skips fixes
   const finalizeUpload = useCallback((preprocessApplyResult) => {
-    const file            = preprocessResult._file;
+    const filename        = preprocessResult._filename || preprocessResult._file?.name || 'dataset.csv';
     const uploadAnomalies = preprocessApplyResult.anomalies || [];
     const report          = {
       auto_fixes:    preprocessResult.auto_fixes || [],
       applied_fixes: preprocessApplyResult.preprocessing_report || [],
     };
     const isAdditional = Object.keys(tables).length > 0;
-    _finishUpload(preprocessApplyResult, file, uploadAnomalies, report, isAdditional);
+    _finishUpload(preprocessApplyResult, filename, uploadAnomalies, report, isAdditional);
     setPreprocessResult(null);
   }, [preprocessResult, tables, _finishUpload]);
 
-  // Skip wizard entirely
+  // Skip wizard
   const skipPreprocessing = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
       const data   = await api.applyPreprocessing(preprocessResult.temp_id, []);
-      const file   = preprocessResult._file;
+      const filename = preprocessResult._filename || preprocessResult._file?.name || 'dataset.csv';
       const report = { auto_fixes: preprocessResult.auto_fixes || [], applied_fixes: [] };
       const isAdditional = Object.keys(tables).length > 0;
-      _finishUpload(data, file, data.anomalies || [], report, isAdditional);
+      _finishUpload(data, filename, data.anomalies || [], report, isAdditional);
       setPreprocessResult(null);
     } catch (err) {
       setError(err.response?.data?.detail || 'Failed to skip preprocessing.');
@@ -157,8 +149,26 @@ export function useChat() {
     }
   }, [preprocessResult, tables, _finishUpload]);
 
-  // Send a question
-  const sendMessage = useCallback(async (question) => {
+  // Load a sample dataset (no file — backend loads CSV directly)
+  const loadSampleDataset = useCallback(async (datasetId) => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const data = await api.loadSampleDataset(datasetId, sessionId);
+      // Sample datasets skip the preprocessing wizard — go straight to preprocess/apply
+      const applied = await api.applyPreprocessing(data.temp_id, []);
+      const filename = data.filename;
+      const isAdditional = Object.keys(tables).length > 0;
+      _finishUpload(applied, filename, applied.anomalies || [], null, isAdditional);
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Failed to load sample dataset.');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [sessionId, tables, _finishUpload]);
+
+  // Send a question (with mode + webSearch)
+  const sendMessage = useCallback(async (question, mode = 'auto', webSearch = false) => {
     if (!sessionId || !question.trim()) return;
 
     const userMsg = {
@@ -173,7 +183,7 @@ export function useChat() {
     setError(null);
 
     try {
-      const data  = await api.askQuestion(sessionId, question, { sensitive_columns: sensitiveColumns });
+      const data  = await api.askQuestion(sessionId, question, { sensitive_columns: sensitiveColumns }, mode, webSearch);
       const aiMsg = {
         id: Date.now() + 1,
         role: 'assistant',
@@ -187,6 +197,8 @@ export function useChat() {
         sources: data.sources,
         suggestions: data.suggestions || [],
         agent_used: data.agent_used,
+        web_context: data.web_context || [],
+        compliance: data.compliance || null,
         timestamp: data.timestamp || new Date().toISOString(),
       };
       setMessages(prev => [...prev, aiMsg]);
@@ -214,7 +226,6 @@ export function useChat() {
     }
   }, [sessionId, messages]);
 
-  // Full reset — clears all tables and session
   const resetChat = useCallback(() => {
     setMessages([]);
     setSessionId(null);
@@ -231,6 +242,7 @@ export function useChat() {
     sensitiveColumns, setSensitiveColumns,
     anomalies, preprocessResult, tables,
     handleUpload, finalizeUpload, skipPreprocessing,
+    loadSampleDataset,
     sendMessage, exportPDF, resetChat,
     setSemanticLayer, setError,
   };

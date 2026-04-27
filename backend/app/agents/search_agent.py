@@ -9,11 +9,11 @@ from typing import Optional
 
 def _blocking_search(query: str, max_results: int, time_filter: Optional[str]) -> list:
     """Run DuckDuckGo search synchronously (called via run_in_executor)."""
-    with DDGS() as ddgs:
-        kwargs = {"max_results": max_results}
-        if time_filter:
-            kwargs["timelimit"] = time_filter
-        return list(ddgs.text(query, **kwargs))
+    ddgs = DDGS()
+    kwargs = {"max_results": max_results}
+    if time_filter:
+        kwargs["timelimit"] = time_filter
+    return list(ddgs.text(query, **kwargs))
 
 
 async def run_search_agent(

@@ -1,8 +1,8 @@
 """
 POST /api/chat — Main chat endpoint.
-Receives a question, routes to orchestrator agents, returns structured response.
 """
 import hashlib
+import json
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -16,25 +16,28 @@ class ChatRequest(BaseModel):
     session_id: str
     question: str
     options: dict = {}
+    mode: str = "auto"          # "auto" | "sql" | "analysis" | "compliance"
+    web_search: bool = False     # user-toggled parallel web enrichment
 
 
 @router.post("/chat")
 async def chat(request: Request, body: ChatRequest):
-    """Process a user question through the agent pipeline."""
     sessions = request.app.state.sessions
 
-    # Validate session
     if body.session_id not in sessions:
-        raise HTTPException(
-            status_code=404,
-            detail="Session not found. Please upload a file first.",
-        )
+        raise HTTPException(status_code=404, detail="Session not found. Please upload a file first.")
 
     session = sessions[body.session_id]
 
-    # Check Q&A cache per session (avoid duplicate LLM calls)
-    import json
-    cache_str = body.question.lower().strip() + json.dumps(body.options, sort_keys=True)
+    # Merge mode and web_search into options so orchestrator can read them
+    merged_options = {
+        **body.options,
+        "mode": body.mode,
+        "web_search": body.web_search,
+    }
+
+    # Cache key includes mode + web_search
+    cache_str = body.question.lower().strip() + json.dumps(merged_options, sort_keys=True)
     cache_key = hashlib.md5(cache_str.encode()).hexdigest()
     cache = session.setdefault("cache", {})
     if cache_key in cache:
@@ -44,71 +47,37 @@ async def chat(request: Request, body: ChatRequest):
 
     try:
         from app.agents.orchestrator import process_question
-
         result = await process_question(
             question=body.question,
             session=session,
-            options=body.options,
+            options=merged_options,
         )
-
     except ImportError:
-        # Orchestrator not ready — return mock response for frontend testing
         result = _mock_response(body.question)
     except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Error processing question: {str(e)}",
-        )
+        raise HTTPException(status_code=500, detail=f"Error processing question: {str(e)}")
 
-    # Add metadata
     result["timestamp"] = datetime.now(timezone.utc).isoformat()
     result["from_cache"] = False
 
-    # Cache the result (max 20 entries per session)
     if len(cache) < 20:
         cache[cache_key] = result
 
-    # Store in message history
     messages = session.setdefault("messages", [])
-    messages.append({
-        "role": "user",
-        "content": body.question,
-        "timestamp": result["timestamp"],
-    })
-    messages.append({
-        "role": "assistant",
-        **result,
-    })
+    messages.append({"role": "user", "content": body.question, "timestamp": result["timestamp"]})
+    messages.append({"role": "assistant", **result})
 
     return result
 
 
 def _mock_response(question: str) -> dict:
-    """
-    Mock response for testing before orchestrator is available.
-    Remove this once the orchestrator is connected.
-    """
     return {
-        "answer": (
-            f"[MOCK] I received your question: '{question}'. "
-            "The AI agents are not yet connected. This is a placeholder response."
-        ),
+        "answer": f"[MOCK] I received: '{question}'. AI agents not yet connected.",
         "agent_used": "mock",
-        "sql_query": None,
-        "python_code": None,
-        "chart": None,
+        "sql_query": None, "python_code": None, "chart": None,
         "matplotlib_image": None,
-        "confidence": {
-            "score": 50,
-            "level": "Medium",
-            "breakdown": {
-                "row_coverage": 50,
-                "data_completeness": 50,
-                "schema_match": 50,
-                "web_corroboration": 50,
-            },
-        },
-        "sources": [],
+        "confidence": {"score": 50, "level": "Medium", "breakdown": {}},
+        "sources": [], "web_context": [], "compliance": {"status": "compliant", "annotations": []},
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "from_cache": False,
     }

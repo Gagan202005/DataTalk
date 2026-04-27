@@ -1,11 +1,17 @@
 import React, { useState, useRef } from 'react';
 import { Send, Paperclip, Mic, MicOff } from 'lucide-react';
+import ModeSelector from './ModeSelector';
+import WebSearchToggle from './WebSearchToggle';
 
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 const isSpeechSupported = !!SpeechRecognition;
 
-export default function ChatInput({ onSend, onFileClick, disabled, placeholder }) {
-  const [input, setInput]       = useState('');
+export default function ChatInput({
+  onSend, onFileClick, disabled, placeholder,
+  mode = 'auto', onModeChange,
+  webSearch = false, onWebSearchChange,
+}) {
+  const [input, setInput]         = useState('');
   const [listening, setListening] = useState(false);
   const textareaRef  = useRef(null);
   const recognitionRef = useRef(null);
@@ -48,6 +54,12 @@ export default function ChatInput({ onSend, onFileClick, disabled, placeholder }
 
   return (
     <form onSubmit={submit}>
+      {/* Mode selector + web search toggle row */}
+      <div className="input-controls-row">
+        <ModeSelector mode={mode} onChange={onModeChange} disabled={disabled} />
+        <WebSearchToggle enabled={webSearch} onChange={onWebSearchChange} disabled={disabled} />
+      </div>
+
       <div className="input-box">
         <button type="button" className="input-icon-btn" onClick={onFileClick} title="Attach file" disabled={disabled}>
           <Paperclip size={16} />

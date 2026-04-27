@@ -8,9 +8,12 @@ export default defineConfig({
     tailwindcss(),
     react(),
   ],
+  resolve: {
+    dedupe: ['react', 'react-dom'],
+  },
   server: {
     proxy: {
-      '/api': process.env.VITE_BACKEND_URL || 'http://localhost:8002'
+      '/api': process.env.VITE_BACKEND_URL || 'http://localhost:8000'
     }
   }
 })
