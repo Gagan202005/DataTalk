@@ -21,7 +21,7 @@ if sys.stdout and hasattr(sys.stdout, "buffer"):
 if sys.stderr and hasattr(sys.stderr, "buffer"):
     sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
 
-load_dotenv(os.path.join(os.path.dirname(__file__), "..", "backend", ".env"))
+load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 
 import pandas as pd
 import numpy as np
@@ -29,10 +29,10 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-# ── import shared logic from the original backend ─────────────────────────────
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "backend"))
-from app.utils.code_sandbox import execute_code
-from app.agents.model_agent import (
+# ── import local modules ───────────────────────────────────────────────────────
+sys.path.insert(0, os.path.dirname(__file__))
+from code_sandbox import execute_code
+from model_agent import (
     run_inference,
     get_available_use_cases,
     auto_map_columns,

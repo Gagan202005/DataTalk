@@ -1,7 +1,7 @@
 import dotenv from 'dotenv';
 import path from 'path';
 
-dotenv.config({ path: path.join(__dirname, '../../backend/.env') });
+dotenv.config({ path: path.join(__dirname, '../../backend-node/.env') });
 
 export const config = {
   port: parseInt(process.env.PORT ?? '8080', 10),
@@ -15,8 +15,8 @@ export const config = {
   cacheSize: parseInt(process.env.CACHE_SIZE ?? '20', 10),
   debug: process.env.DEBUG === 'true',
   sidecarUrl: process.env.SIDECAR_URL ?? 'http://127.0.0.1:8090',
-  sessionsDir: path.join(__dirname, '../../backend/sessions'),
-  sampleDataDir: path.join(__dirname, '../../backend/sample_data'),
-  complianceDocsDir: path.join(__dirname, '../../backend/app/compliance_docs'),
-  modelsDir: path.join(__dirname, '../../backend/app/models'),
+  sessionsDir: process.env.SESSIONS_DIR ?? path.join(__dirname, '../../sessions'),
+  sampleDataDir: path.join(__dirname, '../../sample_data'),
+  complianceDocsDir: path.join(__dirname, '../../compliance_docs'),
+  modelsDir: path.join(__dirname, '../../../sidecar/models'),
 };
