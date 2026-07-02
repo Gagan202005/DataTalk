@@ -4,7 +4,7 @@
   "private": true,
   "description": "DataTalk — NatWest Hackathon monorepo root. Starts all three services.",
   "scripts": {
-    "dev": "concurrently --names \"frontend,backend,sidecar\" --prefix-colors \"cyan,green,yellow\" \"npm run dev --prefix frontend\" \"npm run dev --prefix backend-node\" \"python sidecar/main.py\"",
+    "dev": "concurrently --names \"frontend,backend,sidecar\" --prefix-colors \"cyan,green,yellow\" \"npm run dev --prefix frontend\" \"npm run dev --prefix backend-node\" \"./venv/bin/python sidecar/main.py\"",
     "install:all": "npm install --prefix frontend && npm install --prefix backend-node"
   },
   "devDependencies": {

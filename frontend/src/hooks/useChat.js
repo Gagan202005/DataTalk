@@ -1,10 +1,11 @@
 import { useState, useCallback, useRef } from 'react';
 import { api } from '../services/api';
+import { toPng } from 'html-to-image';
 
 function generateStarterQuestions(schema) {
   const numeric = schema.filter(c => ['INTEGER', 'REAL', 'FLOAT', 'NUMERIC'].includes(c.type));
-  const text    = schema.filter(c => c.type === 'TEXT');
-  const date    = schema.filter(c => ['DATE', 'DATETIME', 'TIMESTAMP'].includes(c.type));
+  const text = schema.filter(c => c.type === 'TEXT');
+  const date = schema.filter(c => ['DATE', 'DATETIME', 'TIMESTAMP'].includes(c.type));
 
   const questions = ['Give me an overview of this dataset'];
 
@@ -26,11 +27,11 @@ function generateStarterQuestions(schema) {
 }
 
 export function useChat() {
-  const [messages, setMessages]           = useState([]);
-  const [sessionId, setSessionId]         = useState(null);
-  const [tables, setTables]               = useState({});
-  const [isLoading, setIsLoading]         = useState(false);
-  const [error, setError]                 = useState(null);
+  const [messages, setMessages] = useState([]);
+  const [sessionId, setSessionId] = useState(null);
+  const [tables, setTables] = useState({});
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
   const [semanticLayer, setSemanticLayer] = useState([]);
   const [sensitiveColumns, setSensitiveColumns] = useState([]);
   const [preprocessResult, setPreprocessResult] = useState(null);
@@ -40,10 +41,10 @@ export function useChat() {
 
   const fileInfo = Object.keys(tables).length > 0
     ? {
-        name: Object.values(tables)[0].filename,
-        rows: Object.values(tables)[0].rowCount,
-        columns: Object.values(tables)[0].colCount,
-      }
+      name: Object.values(tables)[0].filename,
+      rows: Object.values(tables)[0].rowCount,
+      columns: Object.values(tables)[0].colCount,
+    }
     : null;
 
   const dataQuality = Object.keys(tables).length > 0
@@ -57,14 +58,14 @@ export function useChat() {
   };
 
   const _finishUpload = useCallback((data, filename, uploadedAnomalies, report = null, isAdditional = false) => {
-    const tableName  = data.table_name;
+    const tableName = data.table_name;
     const tableEntry = {
-      schema:      data.schema,
+      schema: data.schema,
       dataQuality: data.data_quality,
-      anomalies:   uploadedAnomalies,
-      filename:    filename,
-      rowCount:    data.row_count,
-      colCount:    data.column_count,
+      anomalies: uploadedAnomalies,
+      filename: filename,
+      rowCount: data.row_count,
+      colCount: data.column_count,
     };
 
     setSessionId(data.session_id);
@@ -120,10 +121,10 @@ export function useChat() {
 
   // Called by PreprocessingWizard when user approves/skips fixes
   const finalizeUpload = useCallback((preprocessApplyResult) => {
-    const filename        = preprocessResult._filename || preprocessResult._file?.name || 'dataset.csv';
+    const filename = preprocessResult._filename || preprocessResult._file?.name || 'dataset.csv';
     const uploadAnomalies = preprocessApplyResult.anomalies || [];
-    const report          = {
-      auto_fixes:    preprocessResult.auto_fixes || [],
+    const report = {
+      auto_fixes: preprocessResult.auto_fixes || [],
       applied_fixes: preprocessApplyResult.preprocessing_report || [],
     };
     const isAdditional = Object.keys(tables).length > 0;
@@ -136,7 +137,7 @@ export function useChat() {
     setIsLoading(true);
     setError(null);
     try {
-      const data   = await api.applyPreprocessing(preprocessResult.temp_id, []);
+      const data = await api.applyPreprocessing(preprocessResult.temp_id, []);
       const filename = preprocessResult._filename || preprocessResult._file?.name || 'dataset.csv';
       const report = { auto_fixes: preprocessResult.auto_fixes || [], applied_fixes: [] };
       const isAdditional = Object.keys(tables).length > 0;
@@ -183,7 +184,7 @@ export function useChat() {
     setError(null);
 
     try {
-      const data  = await api.askQuestion(sessionId, question, { sensitive_columns: sensitiveColumns }, mode, webSearch);
+      const data = await api.askQuestion(sessionId, question, { sensitive_columns: sensitiveColumns }, mode, webSearch);
       const aiMsg = {
         id: Date.now() + 1,
         role: 'assistant',
@@ -220,9 +221,30 @@ export function useChat() {
   const exportPDF = useCallback(async () => {
     if (!sessionId || messages.length === 0) return;
     try {
-      await api.exportPDF(sessionId, messages);
+      setIsLoading(true);
+      const attachments = [];
+
+      // Capture charts from DOM
+      for (let i = 0; i < messages.length; i++) {
+        const msg = messages[i];
+        if (msg.chart && !msg.matplotlib_image) {
+          const el = document.getElementById(`chart-${msg.id}`);
+          if (el) {
+            try {
+              const dataUrl = await toPng(el, { backgroundColor: '#ffffff', pixelRatio: 2 });
+              attachments.push({ message_index: i, data: dataUrl });
+            } catch (e) {
+              console.error('Failed to capture chart image', e);
+            }
+          }
+        }
+      }
+
+      await api.exportPDF(sessionId, messages, attachments);
     } catch (err) {
       setError('Failed to export PDF');
+    } finally {
+      setIsLoading(false);
     }
   }, [sessionId, messages]);
 

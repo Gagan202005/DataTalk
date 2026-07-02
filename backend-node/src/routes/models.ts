@@ -32,6 +32,7 @@ router.post('/models/run', async (req: Request, res: Response): Promise<void> =>
 
     const firstMeta = Object.values(tables)[0];
     const schema = firstMeta.schema;
+    const rows = firstMeta.rows;
 
     let columnMapping = userMapping;
     if (!Object.keys(columnMapping).length) {
@@ -41,7 +42,7 @@ router.post('/models/run', async (req: Request, res: Response): Promise<void> =>
     }
 
     const result = await runInferenceSidecar({
-      use_case, models_selected, column_mapping: columnMapping, schema, session_id,
+      use_case, models_selected, column_mapping: columnMapping, schema, rows, session_id,
     });
 
     if (result.error) {

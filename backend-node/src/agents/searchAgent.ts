@@ -1,50 +1,12 @@
 /**
- * Search Agent — mirrors Python backend/app/agents/search_agent.py.
- * Uses duck-duck-scrape for web search.
+ * Search Agent — uses Gemini Google Search Grounding to reliably search the web.
+ * Bypasses all scraping rate limits by using the official API.
  */
+import { GoogleGenerativeAI } from '@google/generative-ai';
+import { config } from '../config';
 import { WebResult } from '../types';
 
-interface DdgResult {
-  title?: string;
-  description?: string;
-  url?: string;
-  [key: string]: any;
-}
-
-async function duckDuckGoSearch(query: string, maxResults: number): Promise<DdgResult[]> {
-  try {
-    // duck-duck-scrape has a CommonJS export
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const { search, SafeSearchType } = require('duck-duck-scrape');
-    const result = await search(query, { safeSearch: SafeSearchType.OFF, locale: 'en-us' });
-    return (result?.results ?? []).slice(0, maxResults).map((r: any) => ({
-      title: r.title ?? '',
-      description: r.description ?? r.snippet ?? '',
-      url: r.url ?? r.href ?? '',
-    }));
-  } catch (e) {
-    console.warn(`[WARN] DuckDuckGo search failed: ${e}`);
-    return [];
-  }
-}
-
-async function duckDuckGoNews(query: string, maxResults: number): Promise<DdgResult[]> {
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const { searchNews, SafeSearchType } = require('duck-duck-scrape');
-    const result = await searchNews(query, { safeSearch: SafeSearchType.OFF });
-    return (result?.results ?? []).slice(0, maxResults).map((r: any) => ({
-      title: r.title ?? '',
-      description: r.excerpt ?? r.description ?? '',
-      url: r.url ?? '',
-      date: r.date ?? '',
-      source: r.source ?? '',
-    }));
-  } catch (e) {
-    console.warn(`[WARN] DuckDuckGo news search failed: ${e}`);
-    return [];
-  }
-}
+const genAI = new GoogleGenerativeAI(config.geminiApiKey);
 
 export async function runSearchAgent(opts: {
   query: string;
@@ -53,22 +15,46 @@ export async function runSearchAgent(opts: {
 }): Promise<{ search_query: string; results: WebResult[]; count: number; error?: string }> {
   const { query, max_results = 5 } = opts;
   try {
-    const raw = await duckDuckGoSearch(query, max_results);
-    const results: WebResult[] = raw.map((r) => ({
-      title: String(r.title ?? ''),
-      snippet: String(r.description ?? ''),
-      url: String(r.url ?? ''),
-    }));
+    const model = genAI.getGenerativeModel({
+      model: config.geminiModel,
+      tools: [{ googleSearch: {} }],
+    });
+
+    const result = await model.generateContent(
+      `Search the web for the following query and provide a factual, concise summary of the results: ${query}`
+    );
+
+    const text = result.response.text();
+    const metadata = result.response.candidates?.[0]?.groundingMetadata;
+    const chunks = metadata?.groundingChunks ?? [];
+    const supports = metadata?.groundingSupports ?? [];
+
+    const results: WebResult[] = [];
+
+    for (let i = 0; i < chunks.length && results.length < max_results; i++) {
+      const web = chunks[i]?.web;
+      if (!web || !web.uri || !web.title) continue;
+
+      // Find the first grounding support text that references this chunk
+      const support = supports.find((s: any) => s.groundingChunkIndices?.includes(i));
+      const snippet = support?.segment?.text || text.substring(0, 200) + '...';
+
+      results.push({
+        title: String(web.title),
+        snippet: String(snippet),
+        url: String(web.uri),
+      });
+    }
+
     return { search_query: query, results, count: results.length };
   } catch (e: any) {
+    console.error(`[WARN] Web search failed:`, e);
     return { search_query: query, results: [], count: 0, error: String(e) };
   }
 }
 
-export { duckDuckGoNews };
-
 export function buildSearchQuery(question: string, context: string = ''): string {
-  const bankingKeywords = ['bank', 'finance', 'market', 'economy', 'trading', 'investment'];
+  const bankingKeywords = ['bank', 'finance', 'market', 'economy', 'trading', 'investment', 'stock', 'price', 'share', 'jpmorgan'];
   const hasContext = bankingKeywords.some((kw) => question.toLowerCase().includes(kw));
   if (!hasContext && context) return `${question} ${context} banking finance trends`;
   if (!hasContext) return `${question} banking industry trends`;

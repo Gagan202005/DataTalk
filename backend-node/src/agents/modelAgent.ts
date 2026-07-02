@@ -132,9 +132,10 @@ export async function runInferenceSidecar(opts: {
   models_selected: string[];
   column_mapping: Record<string, string>;
   schema: ColumnSchema[];
+  rows: any[];
   session_id: string;
 }): Promise<Record<string, any>> {
-  const { use_case, models_selected, column_mapping, schema, session_id } = opts;
+  const { use_case, models_selected, column_mapping, schema, rows, session_id } = opts;
   const info = USE_CASES[use_case];
   if (!info) return { error: `Unknown use case: ${use_case}` };
 
@@ -159,7 +160,7 @@ export async function runInferenceSidecar(opts: {
     const res = await fetch(`${config.sidecarUrl}/run-inference`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ use_case, models_selected, column_mapping, session_id }),
+      body: JSON.stringify({ use_case, models_selected, column_mapping, schema, rows, session_id }),
       signal: AbortSignal.timeout(60_000),
     });
     if (!res.ok) throw new Error(`Sidecar returned ${res.status}`);

@@ -184,10 +184,17 @@ export function generatePdfReport(opts: {
           for (const b64 of images) {
             try {
               const imgBuf = Buffer.from(b64.includes(',') ? b64.split(',')[1] : b64, 'base64');
-              if (doc.y > doc.page.height - 200) doc.addPage();
-              doc.moveDown(0.3);
-              doc.image(imgBuf, { width: Math.min(400, contentWidth), align: 'center' });
-              doc.moveDown(0.3);
+              const img = doc.openImage(imgBuf);
+              const targetWidth = Math.min(400, contentWidth);
+              const scaledHeight = img.height * (targetWidth / img.width);
+              
+              doc.moveDown(0.5);
+              if (doc.y + scaledHeight > doc.page.height - 54) doc.addPage();
+              
+              const xPos = leftMargin + (contentWidth - targetWidth) / 2;
+              doc.image(imgBuf, xPos, doc.y, { width: targetWidth });
+              doc.y += scaledHeight;
+              doc.moveDown(0.5);
             } catch { /* skip bad image */ }
           }
 
@@ -198,11 +205,7 @@ export function generatePdfReport(opts: {
             doc.font('Helvetica');
           }
 
-          // Confidence
-          if (msg.confidence) {
-            doc.fontSize(8).fillColor(GRAY500)
-              .text(`Confidence: ${msg.confidence.score}%  ${msg.confidence.level ?? ''}`);
-          }
+
 
           // Attachments
           if (attachments) {
@@ -210,7 +213,17 @@ export function generatePdfReport(opts: {
               if (att.message_index === idx && att.data) {
                 try {
                   const imgBuf = Buffer.from(att.data.includes(',') ? att.data.split(',')[1] : att.data, 'base64');
-                  doc.image(imgBuf, { width: Math.min(400, contentWidth), align: 'center' });
+                  const img = doc.openImage(imgBuf);
+                  const targetWidth = Math.min(400, contentWidth);
+                  const scaledHeight = img.height * (targetWidth / img.width);
+                  
+                  doc.moveDown(0.5);
+                  if (doc.y + scaledHeight > doc.page.height - 54) doc.addPage();
+                  
+                  const xPos = leftMargin + (contentWidth - targetWidth) / 2;
+                  doc.image(imgBuf, xPos, doc.y, { width: targetWidth });
+                  doc.y += scaledHeight;
+                  doc.moveDown(0.5);
                 } catch { /* skip */ }
               }
             }

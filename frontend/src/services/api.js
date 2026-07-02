@@ -48,10 +48,10 @@ export const api = {
   },
 
   // Export PDF report
-  exportPDF: async (sessionId, messages) => {
+  exportPDF: async (sessionId, messages, attachments = []) => {
     const response = await axios.post(
       `${API_BASE}/export-pdf`,
-      { session_id: sessionId, messages },
+      { session_id: sessionId, messages, attachments },
       { responseType: 'blob' }
     );
     const url = window.URL.createObjectURL(new Blob([response.data]));

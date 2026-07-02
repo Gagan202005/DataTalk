@@ -427,11 +427,8 @@ export default function ModelLab({ isOpen, onClose, sessionId, schema = [], onDi
                 </div>
               )}
 
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8 }}>
+              <div style={{ display: 'flex', justifyContent: 'flex-start', marginTop: 8 }}>
                 <button className="model-lab-btn secondary" onClick={() => { setStep(1); setResult(null); }}>Re-run</button>
-                <button className="model-lab-btn primary" onClick={handleDiscuss}>
-                  <MessageSquare size={13} /> Discuss in Chat
-                </button>
               </div>
             </div>
           )}

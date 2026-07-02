@@ -239,6 +239,12 @@ def run_inference(
     feature_names_path = os.path.join(models_dir, "feature_names.joblib")
     feature_names = joblib.load(feature_names_path) if os.path.exists(feature_names_path) else info["required_features"]
 
+    # Auto-map any features the user left blank (or if no mapping was provided)
+    auto_mapped = auto_map_columns(schema, feature_names)
+    for feat in feature_names:
+        if not column_mapping.get(feat) and feat in auto_mapped:
+            column_mapping[feat] = auto_mapped[feat]
+
     # Build full feature matrix — zero-fill missing features so model never sees wrong shape
     n_rows = len(df)
     X = np.zeros((n_rows, len(feature_names)))
@@ -247,7 +253,7 @@ def run_inference(
     for j, feat in enumerate(feature_names):
         col = column_mapping.get(feat)
         if col and col in df.columns:
-            X[:, j] = df[col].fillna(0).astype(float)
+            X[:, j] = pd.to_numeric(df[col], errors='coerce').fillna(0).astype(float)
             mapped_count += 1
 
     if mapped_count == 0:
@@ -292,12 +298,18 @@ def run_inference(
             threshold = float(np.median(proba))
             y_synth = (proba >= threshold).astype(int)
             from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score
+            
+            try:
+                auc_val = round(roc_auc_score(y_synth, proba), 4) if len(np.unique(y_synth)) > 1 else 0.5
+            except ValueError:
+                auc_val = 0.5
+
             metrics[model_name] = {
                 "accuracy": round(accuracy_score(y_synth, preds), 4),
                 "precision": round(precision_score(y_synth, preds, zero_division=0), 4),
                 "recall": round(recall_score(y_synth, preds, zero_division=0), 4),
                 "f1": round(f1_score(y_synth, preds, zero_division=0), 4),
-                "auc_roc": round(roc_auc_score(y_synth, proba), 4),
+                "auc_roc": auc_val,
             }
             scored_sample = [
                 {"row": int(i), "probability": round(float(proba[i]), 4), "prediction": int(preds[i])}

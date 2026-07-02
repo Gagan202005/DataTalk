@@ -21,14 +21,14 @@ const tooltipStyle = {
   padding: '8px 12px',
   boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
 };
-const axisStyle  = { stroke: '#9b9b9b', fontSize: 11, fontFamily: '"DM Sans", sans-serif' };
-const gridStyle  = { strokeDasharray: '3 3', stroke: 'rgba(0,0,0,0.06)' };
+const axisStyle = { stroke: '#9b9b9b', fontSize: 11, fontFamily: '"DM Sans", sans-serif' };
+const gridStyle = { strokeDasharray: '3 3', stroke: 'rgba(0,0,0,0.06)' };
 
-export default function ChartRenderer({ chart, matplotlib_image, onExplain }) {
+export default function ChartRenderer({ id, chart, matplotlib_image, onExplain }) {
   /* Matplotlib base64 image */
   if (matplotlib_image) {
     return (
-      <div className="chart-container" style={{ marginTop: 12 }}>
+      <div id={id} className="chart-container" style={{ marginTop: 12 }}>
         <div className="chart-container-header">
           <BarChart3 size={13} style={{ color: 'var(--accent)' }} />
           <span>Chart Output</span>
@@ -41,16 +41,6 @@ export default function ChartRenderer({ chart, matplotlib_image, onExplain }) {
             style={{ maxWidth: '100%', height: 'auto', borderRadius: 8, maxHeight: 420 }}
           />
         </div>
-        {onExplain && (
-          <div style={{ padding: '0 14px 14px', display: 'flex', justifyContent: 'center' }}>
-            <button
-              onClick={onExplain}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 16px', borderRadius: 99, border: '1px solid rgba(79,70,229,0.25)', background: 'var(--accent-light)', color: 'var(--accent)', fontSize: 12, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit' }}
-            >
-              <Sparkles size={12} /> Explain this chart
-            </button>
-          </div>
-        )}
       </div>
     );
   }
@@ -60,7 +50,7 @@ export default function ChartRenderer({ chart, matplotlib_image, onExplain }) {
   const { type, data, x_key, y_key, title } = chart;
 
   return (
-    <div className="chart-container" style={{ marginTop: 12 }}>
+    <div id={id} className="chart-container" style={{ marginTop: 12, background: '#ffffff' }}>
       <div className="chart-container-header">
         <BarChart3 size={13} style={{ color: 'var(--accent)' }} />
         <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{title || 'Chart'}</span>
@@ -88,7 +78,7 @@ function renderChart(type, data, x_key, y_key) {
   const yAxisFormatter = (v) => {
     if (typeof v !== 'number') return v;
     if (Math.abs(v) >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`;
-    if (Math.abs(v) >= 1_000)     return `${(v / 1_000).toFixed(1)}k`;
+    if (Math.abs(v) >= 1_000) return `${(v / 1_000).toFixed(1)}k`;
     return v;
   };
 

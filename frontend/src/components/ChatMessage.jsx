@@ -3,14 +3,13 @@ import ReactMarkdown from 'react-markdown';
 import { Database, FileSpreadsheet, Copy, Check, AlertCircle, ChevronRight, ChevronDown, ChevronUp, BarChart2 } from 'lucide-react';
 import DataSummary from './DataSummary';
 import ChartRenderer from './ChartRenderer';
-import ConfidenceScore from './ConfidenceScore';
 import ComplianceBadge from './ComplianceBadge';
 import WebContextCard from './WebContextCard';
 
 export default function ChatMessage({ message, onSendMessage }) {
-  const isUser   = message.role === 'user';
+  const isUser = message.role === 'user';
   const isSystem = message.role === 'system';
-  const isError  = message.isError;
+  const isError = message.isError;
 
   const timeStr = message.timestamp
     ? new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
@@ -85,14 +84,14 @@ export default function ChatMessage({ message, onSendMessage }) {
 
   /* ── AI / assistant message ── */
   const AGENT_MAP = {
-    sql_agent:         { label: 'SQL',        cls: 'sql'        },
-    code_agent:        { label: 'Analysis',   cls: 'code'       },
-    search_agent:      { label: 'Web Search', cls: 'search'     },
-    general:           { label: 'DataTalk',   cls: 'general'    },
-    compliance_agent:  { label: 'Compliance', cls: 'compliance' },
+    sql_agent: { label: 'SQL', cls: 'sql' },
+    code_agent: { label: 'Analysis', cls: 'code' },
+    search_agent: { label: 'Web Search', cls: 'search' },
+    general: { label: 'DataTalk', cls: 'general' },
+    compliance_agent: { label: 'Compliance', cls: 'compliance' },
   };
   const agentInfo = AGENT_MAP[message.agent_used] || { label: 'DataTalk', cls: 'general' };
-  const hasChart  = message.chart || message.matplotlib_image;
+  const hasChart = message.chart || message.matplotlib_image;
 
   return (
     <div className="msg-ai">
@@ -148,18 +147,9 @@ export default function ChatMessage({ message, onSendMessage }) {
           {hasChart && (
             <CollapsibleSection label="Chart" defaultOpen>
               <ChartRenderer
+                id={`chart-${message.id}`}
                 chart={message.chart}
                 matplotlib_image={message.matplotlib_image}
-                onExplain={onSendMessage
-                  ? () => {
-                      if (message.chart?.data) {
-                        const sample = JSON.stringify(message.chart.data.slice(0, 10));
-                        onSendMessage(`Explain this chart in detail — describe the key patterns, trends, and insights. Chart data: ${sample}`);
-                      } else {
-                        onSendMessage('Explain this chart in detail — describe the key patterns, trends, and insights.');
-                      }
-                    }
-                  : undefined}
               />
             </CollapsibleSection>
           )}
@@ -182,14 +172,6 @@ export default function ChatMessage({ message, onSendMessage }) {
             </div>
           )}
 
-          {/* Confidence */}
-          {message.confidence && (
-            <div className="card-section">
-              <div className="card-section-body">
-                <ConfidenceScore confidence={message.confidence} />
-              </div>
-            </div>
-          )}
 
           {/* Sources */}
           {message.sources && message.sources.length > 0 && (
@@ -255,12 +237,12 @@ function MarkdownContent({ content }) {
   return (
     <ReactMarkdown
       components={{
-        p:      ({ children }) => <p>{children}</p>,
+        p: ({ children }) => <p>{children}</p>,
         strong: ({ children }) => <strong>{children}</strong>,
-        em:     ({ children }) => <em>{children}</em>,
-        ul:     ({ children }) => <ul>{children}</ul>,
-        ol:     ({ children }) => <ol>{children}</ol>,
-        li:     ({ children }) => <li>{children}</li>,
+        em: ({ children }) => <em>{children}</em>,
+        ul: ({ children }) => <ul>{children}</ul>,
+        ol: ({ children }) => <ol>{children}</ol>,
+        li: ({ children }) => <li>{children}</li>,
         code: ({ children, className }) => {
           if (className) return <pre><code>{children}</code></pre>;
           return <code>{children}</code>;

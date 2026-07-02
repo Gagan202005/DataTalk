@@ -106,14 +106,18 @@ class InferRequest(BaseModel):
 @app.post("/run-inference")
 def run_inference_endpoint(req: InferRequest):
     df = pd.DataFrame(req.rows) if req.rows else pd.DataFrame()
-    result = run_inference(
-        use_case=req.use_case,
-        models_selected=req.models_selected,
-        column_mapping=req.column_mapping,
-        df=df,
-        schema=req.schema,
-    )
-    return result
+    try:
+        result = run_inference(
+            use_case=req.use_case,
+            models_selected=req.models_selected,
+            column_mapping=req.column_mapping,
+            df=df,
+            schema=req.schema,
+        )
+        return result
+    except Exception as e:
+        import traceback
+        return {"error": f"Sidecar execution failed: {str(e)}\n{traceback.format_exc()}"}
 
 
 # ── /use-cases ─────────────────────────────────────────────────────────────────
