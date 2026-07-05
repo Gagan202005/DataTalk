@@ -1,6 +1,5 @@
 /**
  * Data Preprocessing Engine.
- * Mirrors Python backend/app/core/preprocessor.py — same two-phase pipeline.
  */
 import { ParsedRow, PreprocessIssue, PreprocessResult } from '../types';
 
@@ -242,7 +241,7 @@ function applyDateStandardise(rows: ParsedRow[], col: string): [ParsedRow[], Pre
 }
 
 // ─────────────────────────────────────────────
-// PUBLIC API — mirrors Python exactly
+// PUBLIC API
 // ─────────────────────────────────────────────
 export function detectIssues(rows: ParsedRow[]): [ParsedRow[], Record<string, any>[], Record<string, any>[]] {
   let data = rows;

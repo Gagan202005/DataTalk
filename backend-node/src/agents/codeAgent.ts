@@ -1,6 +1,5 @@
 /**
  * Code Agent — generates Python code and delegates execution to the Python sidecar.
- * Mirrors Python backend/app/agents/code_agent.py.
  */
 import { gemini } from '../utils/geminiClient';
 import { sidecarExecuteCode } from '../utils/sidecarClient';

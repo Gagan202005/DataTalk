@@ -39,7 +39,6 @@ router.post('/chat', async (req: Request, res: Response): Promise<void> => {
     const messages = (session.messages = session.messages ?? []);
     messages.push({ role: 'user', content: question, timestamp });
     messages.push({ role: 'assistant', ...finalResult });
-
     res.json(finalResult);
   } catch (e: any) {
     res.status(500).json({ detail: `Error processing question: ${e.message}` });

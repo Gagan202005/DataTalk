@@ -1,10 +1,10 @@
 /**
- * GET /api/news — Real-time financial news. Mirrors Python backend/app/routes/news.py.
+ * GET /api/news — Real-time financial news
  */
 import { Router, Request, Response } from 'express';
 import { sessions } from '../sessions';
 import { gemini } from '../utils/geminiClient';
-import { duckDuckGoNews } from '../agents/searchAgent';
+import { runSearchAgent } from '../agents/searchAgent';
 
 const NEWS_TTL = 300_000; // 5 minutes
 let _newsCache: { data: any; ts: number; key: string } = { data: null, ts: 0, key: '' };
@@ -176,12 +176,12 @@ router.get('/news', async (req: Request, res: Response): Promise<void> => {
 
     for (const query of queries.slice(0, 8)) {
       try {
-        const results = await duckDuckGoNews(query, 6);
-        for (const item of results) {
+        const results = await runSearchAgent({ query, max_results: 6 });
+        for (const item of results.results) {
           const headline = item.title ?? '';
           if (!headline || seenHeadlines.has(headline)) continue;
           seenHeadlines.add(headline);
-          const description = item.description ?? '';
+          const description = item.snippet ?? '';
           const fullText = `${headline} ${description}`;
           const [lat, lng] = guessLocation(fullText);
           allNews.push({
@@ -191,9 +191,9 @@ router.get('/news', async (req: Request, res: Response): Promise<void> => {
             lat, lng,
             category: classifyCategory(fullText),
             severity: classifySeverity(headline),
-            time: formatTimeAgo(item.date ?? ''),
+            time: formatTimeAgo((item as any).date ?? ''),
             url: item.url ?? '',
-            source: item.source ?? '',
+            source: (item as any).source ?? '',
           });
         }
       } catch { /* ignore per-query errors */ }

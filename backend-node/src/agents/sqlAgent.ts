@@ -1,5 +1,5 @@
 /**
- * SQL Agent — mirrors Python backend/app/agents/sql_agent.py exactly.
+ * SQL Agent
  */
 import { gemini } from '../utils/geminiClient';
 import { Session, ParsedRow, ChartSpec, ColumnSchema } from '../types';
@@ -8,7 +8,6 @@ const SQL_SYSTEM_PROMPT = `You are a DuckDB SQL expert. Given this database sche
 
 Rules:
 1. ONLY reference columns that exist in the schema below.
-2. Use metric definitions from the semantic layer when the user references a defined metric.
 3. Always include meaningful aliases with AS.
 4. For time-series: ORDER BY the date/time column.
 5. For comparisons: include all relevant grouping columns.
@@ -107,11 +106,9 @@ export async function runSqlAgent(opts: {
 }> {
   const { question, session, include_chart = true } = opts;
   const db = session.db!;
-  const semantic_layer = session.semanticLayer;
   const schemaStr = buildSchemaStr(session);
   const allCols = getAllSchemaCols(session);
-  const semanticStr = semantic_layer?.toJson() ?? 'No custom metrics defined.';
-  const fullSystem = SQL_SYSTEM_PROMPT + `\n\nSchema:\n${schemaStr}\n\nSemantic Layer:\n${semanticStr}`;
+  const fullSystem = SQL_SYSTEM_PROMPT + `\n\nSchema:\n${schemaStr}`;
 
   let sqlQuery = await gemini.generate({ prompt: `User question: ${question}`, system_instruction: fullSystem, temperature: 0.1 });
   sqlQuery = cleanSql(sqlQuery);

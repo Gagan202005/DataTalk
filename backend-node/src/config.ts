@@ -17,6 +17,6 @@ export const config = {
   sidecarUrl: process.env.SIDECAR_URL ?? 'http://127.0.0.1:8090',
   sessionsDir: process.env.SESSIONS_DIR ?? path.join(__dirname, '../../sessions'),
   sampleDataDir: path.join(__dirname, '../../sample_data'),
-  complianceDocsDir: path.join(__dirname, '../../compliance_docs'),
+  complianceDocsDir: path.join(__dirname, '../compliance_docs'),
   modelsDir: path.join(__dirname, '../../../sidecar/models'),
 };

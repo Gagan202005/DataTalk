@@ -8,16 +8,12 @@ export default function TopBar({
   tables = {},
   sessionId,
   onExportPDF,
-  onOpenModelLab,
   onOpenGlobe,
-  onOpenCompliance,
-  complianceStatus,
 }) {
   const { theme, toggleTheme } = useTheme();
   const tableNames   = Object.keys(tables);
   const hasData      = tableNames.length > 0;
   const firstName    = hasData ? Object.values(tables)[0].filename : null;
-  const complianceCls = complianceStatus === 'blocked' ? 'blocked' : complianceStatus === 'warning' ? 'warning' : 'ok';
 
   return (
     <header className="topbar">
@@ -48,21 +44,7 @@ export default function TopBar({
 
       <div style={{ flex: 1 }} />
 
-      {/* Compliance shield — only when data loaded */}
-      {hasData && (
-        <div
-          className={`compliance-shield ${complianceCls}`}
-          title={
-            complianceStatus === 'blocked'  ? 'Compliance: blocked query' :
-            complianceStatus === 'warning'  ? 'Compliance: warnings detected' :
-                                              'Compliance: all clear'
-          }
-        >
-          {complianceStatus === 'warning' || complianceStatus === 'blocked'
-            ? <ShieldAlert size={14} />
-            : <ShieldCheck size={14} />}
-        </div>
-      )}
+
 
 
       {/* Financial Globe button */}
@@ -75,26 +57,9 @@ export default function TopBar({
         <span>Globe</span>
       </button>
 
-      {/* Compliance button */}
-      <button
-        className="topbar-btn"
-        onClick={onOpenCompliance}
-        title="RBI Compliance Guidelines"
-      >
-        <Shield size={14} />
-        <span>Compliance</span>
-      </button>
 
-      {/* Model Lab button */}
-      <button
-        className="topbar-btn topbar-model-btn"
-        onClick={onOpenModelLab}
-        title="Secure Model Lab — run models privately in your environment"
-        disabled={!hasData}
-      >
-        <FlaskConical size={14} />
-        <span>Secure Model Lab</span>
-      </button>
+
+
 
       {/* Theme toggle */}
       <button

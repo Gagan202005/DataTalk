@@ -2,7 +2,7 @@ import 'dotenv/config';
 import fs from 'fs';
 import app, { logger } from './app';
 import { config } from './config';
-import { getComplianceKb } from './core/complianceKb';
+
 import { sessions } from './sessions';
 
 const PORT = config.port;
@@ -10,10 +10,6 @@ const PORT = config.port;
 async function startup(): Promise<void> {
   fs.mkdirSync(config.sessionsDir, { recursive: true });
   fs.mkdirSync(config.uploadDir, { recursive: true });
-
-  const kb = getComplianceKb();
-  const nChunks = kb.loadDocuments(config.complianceDocsDir);
-  logger.info(`Compliance KB: ${nChunks} chunks loaded from ${config.complianceDocsDir}`);
 }
 
 async function main(): Promise<void> {

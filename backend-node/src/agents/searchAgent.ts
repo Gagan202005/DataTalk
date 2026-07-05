@@ -1,6 +1,5 @@
 /**
  * Search Agent — uses Gemini Google Search Grounding to reliably search the web.
- * Bypasses all scraping rate limits by using the official API.
  */
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { config } from '../config';
@@ -17,7 +16,7 @@ export async function runSearchAgent(opts: {
   try {
     const model = genAI.getGenerativeModel({
       model: config.geminiModel,
-      tools: [{ googleSearch: {} }],
+      tools: [{ googleSearch: {} } as any],
     });
 
     const result = await model.generateContent(
@@ -26,8 +25,8 @@ export async function runSearchAgent(opts: {
 
     const text = result.response.text();
     const metadata = result.response.candidates?.[0]?.groundingMetadata;
-    const chunks = metadata?.groundingChunks ?? [];
-    const supports = metadata?.groundingSupports ?? [];
+    const chunks = (metadata as any)?.groundingChunks ?? [];
+    const supports = (metadata as any)?.groundingSupports ?? [];
 
     const results: WebResult[] = [];
 
@@ -54,7 +53,7 @@ export async function runSearchAgent(opts: {
 }
 
 export function buildSearchQuery(question: string, context: string = ''): string {
-  const bankingKeywords = ['bank', 'finance', 'market', 'economy', 'trading', 'investment', 'stock', 'price', 'share', 'jpmorgan'];
+  const bankingKeywords = ['bank', 'finance', 'market', 'economy', 'trading', 'investment', 'stock', 'price', 'share'];
   const hasContext = bankingKeywords.some((kw) => question.toLowerCase().includes(kw));
   if (!hasContext && context) return `${question} ${context} banking finance trends`;
   if (!hasContext) return `${question} banking industry trends`;

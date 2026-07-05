@@ -1,5 +1,5 @@
 /**
- * Gemini API client — mirrors Python backend/app/utils/gemini_client.py.
+ * Gemini API client
  */
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { config } from '../config';

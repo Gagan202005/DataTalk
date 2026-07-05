@@ -1,8 +1,7 @@
 """
 DataTalk Python Sidecar — loopback-only FastAPI on port 8090.
-Exposes two capabilities that have no viable JS replacement:
-  1. /infer/{use_case}   — sklearn .joblib model inference + matplotlib charts
-  2. /execute-code       — sandboxed Python execution (pandas / matplotlib / scipy)
+Exposes one capabilities that have no viable JS replacement:
+ /execute-code       — sandboxed Python execution (pandas / matplotlib / scipy)
 
 Frontend never talks here. Only Node Express on :8080 calls these endpoints.
 """
@@ -32,11 +31,7 @@ from pydantic import BaseModel
 # ── import local modules ───────────────────────────────────────────────────────
 sys.path.insert(0, os.path.dirname(__file__))
 from code_sandbox import execute_code
-from model_agent import (
-    run_inference,
-    get_available_use_cases,
-    auto_map_columns,
-)
+
 
 app = FastAPI(title="DataTalk Sidecar", version="1.0.0")
 
@@ -92,39 +87,6 @@ def execute_code_endpoint(req: ExecuteCodeRequest):
         success=result.success,
     )
 
-
-# ── /run-inference ─────────────────────────────────────────────────────────────
-
-class InferRequest(BaseModel):
-    use_case: str
-    models_selected: List[str] = []
-    column_mapping: Dict[str, str] = {}
-    schema: List[Dict[str, Any]] = []
-    rows: Optional[List[Dict[str, Any]]] = None
-
-
-@app.post("/run-inference")
-def run_inference_endpoint(req: InferRequest):
-    df = pd.DataFrame(req.rows) if req.rows else pd.DataFrame()
-    try:
-        result = run_inference(
-            use_case=req.use_case,
-            models_selected=req.models_selected,
-            column_mapping=req.column_mapping,
-            df=df,
-            schema=req.schema,
-        )
-        return result
-    except Exception as e:
-        import traceback
-        return {"error": f"Sidecar execution failed: {str(e)}\n{traceback.format_exc()}"}
-
-
-# ── /use-cases ─────────────────────────────────────────────────────────────────
-
-@app.get("/use-cases")
-def use_cases():
-    return {"use_cases": get_available_use_cases()}
 
 
 # ── entry point ────────────────────────────────────────────────────────────────

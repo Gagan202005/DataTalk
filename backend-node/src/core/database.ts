@@ -1,7 +1,6 @@
 /**
  * DuckDB persistent database manager.
  * Each session gets its own .duckdb file — survives server restarts.
- * Mirrors Python backend/app/core/database.py exactly.
  */
 import path from 'path';
 import fs from 'fs';

@@ -46,7 +46,7 @@ backend-node/sample_data/banking_transactions.csv
 *.log
 # Added by code-review-graph
 .code-review-graph/
-b a c k e n d / s a m p l e _ d a t a / * . c s v  
- 
+backend/sample_data/*.csv
+
 # Local test scripts
 backend-node/test-gemini-search*.ts

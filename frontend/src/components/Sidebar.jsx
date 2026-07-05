@@ -1,10 +1,8 @@
 import React, { useState } from 'react';
 import { Plus, Trash2, Database, FileSpreadsheet, Download, Lock, Layers, Edit3, BarChart2, ShieldAlert } from 'lucide-react';
-import SemanticLayerEditor from './SemanticLayerEditor';
 
 export default function Sidebar({
-  isOpen, fileData, onNewChat, onClearDataset, onExportPDF,
-  semanticLayer, onUpdateSemanticLayer, sessionId,
+  isOpen, fileData, onNewChat, onClearDataset, onExportPDF, sessionId,
   schema, dataQuality, sensitiveColumns = [], onUpdateSensitiveColumns,
   tables = {},
 }) {
@@ -157,36 +155,7 @@ export default function Sidebar({
                 </div>
               )}
 
-              {/* Semantic Layer */}
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                  <div className="sidebar-section-label" style={{ marginBottom: 0 }}>Semantic Layer</div>
-                  <button
-                    onClick={() => setShowEditor(true)}
-                    style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, color: 'var(--sidebar-accent)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}
-                  >
-                    <Edit3 size={9} /> Edit
-                  </button>
-                </div>
-                <div className="sidebar-card">
-                  {semanticLayer && semanticLayer.length > 0 ? (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-                      {semanticLayer.slice(0, 4).map((m, i) => (
-                        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <Layers size={9} style={{ color: 'var(--sidebar-accent)', flexShrink: 0 }} />
-                          <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--sidebar-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.name}</span>
-                          <span style={{ fontSize: 9, color: 'var(--sidebar-muted)', marginLeft: 'auto', fontFamily: 'monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 80 }}>{m.expression}</span>
-                        </div>
-                      ))}
-                      {semanticLayer.length > 4 && (
-                        <p style={{ fontSize: 9, color: 'var(--sidebar-muted)', textAlign: 'center' }}>+{semanticLayer.length - 4} more</p>
-                      )}
-                    </div>
-                  ) : (
-                    <p style={{ fontSize: 10, color: 'var(--sidebar-muted)', textAlign: 'center', padding: '4px 0' }}>No metrics defined</p>
-                  )}
-                </div>
-              </div>
+
 
               {/* Clear */}
               <button
@@ -224,14 +193,6 @@ export default function Sidebar({
           </button>
         </div>
       </aside>
-
-      <SemanticLayerEditor
-        isOpen={showEditor}
-        onClose={() => setShowEditor(false)}
-        semanticLayer={semanticLayer || []}
-        onSave={(metrics) => { onUpdateSemanticLayer && onUpdateSemanticLayer(metrics); }}
-        sessionId={sessionId}
-      />
     </>
   );
 }

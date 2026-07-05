@@ -32,7 +32,6 @@ export function useChat() {
   const [tables, setTables] = useState({});
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [semanticLayer, setSemanticLayer] = useState([]);
   const [sensitiveColumns, setSensitiveColumns] = useState([]);
   const [preprocessResult, setPreprocessResult] = useState(null);
   const messagesEndRef = useRef(null);
@@ -70,14 +69,6 @@ export function useChat() {
 
     setSessionId(data.session_id);
     setTables(prev => ({ ...prev, [tableName]: tableEntry }));
-
-    if (data.suggested_metrics) {
-      setSemanticLayer(prev => {
-        const existing = new Set(prev.map(m => m.name));
-        const newMetrics = data.suggested_metrics.filter(m => !existing.has(m.name));
-        return [...prev, ...newMetrics];
-      });
-    }
 
     const action = isAdditional ? 'Added' : 'Loaded';
     let systemContent = `📊 ${action} **${filename}** as table \`${tableName}\` — ${data.row_count.toLocaleString()} rows, ${data.column_count} columns.`;
@@ -150,23 +141,6 @@ export function useChat() {
     }
   }, [preprocessResult, tables, _finishUpload]);
 
-  // Load a sample dataset (no file — backend loads CSV directly)
-  const loadSampleDataset = useCallback(async (datasetId) => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const data = await api.loadSampleDataset(datasetId, sessionId);
-      // Sample datasets skip the preprocessing wizard — go straight to preprocess/apply
-      const applied = await api.applyPreprocessing(data.temp_id, []);
-      const filename = data.filename;
-      const isAdditional = Object.keys(tables).length > 0;
-      _finishUpload(applied, filename, applied.anomalies || [], null, isAdditional);
-    } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to load sample dataset.');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [sessionId, tables, _finishUpload]);
 
   // Send a question (with mode + webSearch)
   const sendMessage = useCallback(async (question, mode = 'auto', webSearch = false) => {
@@ -194,7 +168,6 @@ export function useChat() {
         python_code: data.python_code,
         chart: data.chart,
         matplotlib_image: data.matplotlib_image,
-        confidence: data.confidence,
         sources: data.sources,
         suggestions: data.suggestions || [],
         agent_used: data.agent_used,
@@ -253,19 +226,17 @@ export function useChat() {
     setSessionId(null);
     setTables({});
     setError(null);
-    setSemanticLayer([]);
     setSensitiveColumns([]);
     setPreprocessResult(null);
   }, []);
 
   return {
     messages, sessionId, fileInfo, schema, dataQuality,
-    isLoading, error, semanticLayer, messagesEndRef,
+    isLoading, error, messagesEndRef,
     sensitiveColumns, setSensitiveColumns,
     anomalies, preprocessResult, tables,
     handleUpload, finalizeUpload, skipPreprocessing,
-    loadSampleDataset,
     sendMessage, exportPDF, resetChat,
-    setSemanticLayer, setError,
+    setError,
   };
 }

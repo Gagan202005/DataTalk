@@ -9,9 +9,8 @@ import Sidebar from './components/Sidebar';
 import SplashScreen from './components/SplashScreen';
 import TopBar from './components/TopBar';
 import StatusBar from './components/StatusBar';
-import ModelLab from './components/ModelLab';
 import FinancialGlobe from './components/FinancialGlobe';
-import CompliancePanel from './components/CompliancePanel';
+
 import { useChat } from './hooks/useChat';
 
 const PROCESSING_STAGES = [
@@ -25,9 +24,8 @@ export default function App() {
   const [showSplash, setShowSplash]       = useState(true);
   const [sidebarOpen, setSidebarOpen]     = useState(true);
   const [showUpload, setShowUpload]       = useState(false);
-  const [modelLabOpen, setModelLabOpen]   = useState(false);
   const [globeOpen, setGlobeOpen]         = useState(false);
-  const [complianceOpen, setComplianceOpen] = useState(false);
+
   const [stageIdx, setStageIdx]           = useState(0);
   const [mode, setMode]                   = useState('auto');
   const [webSearch, setWebSearch]         = useState(false);
@@ -35,13 +33,7 @@ export default function App() {
 
   const chat = useChat();
 
-  // Derive compliance status from most recent AI message
-  const complianceStatus = (() => {
-    const aiMsgs = chat.messages.filter(m => m.role === 'assistant' && m.compliance);
-    if (aiMsgs.length === 0) return null;
-    const last = aiMsgs[aiMsgs.length - 1];
-    return last.compliance?.status || null;
-  })();
+
 
   // Cycle through processing stages while loading
   useEffect(() => {
@@ -88,8 +80,6 @@ export default function App() {
           onClearDataset={chat.resetChat}
           onExportPDF={chat.exportPDF}
           sessionId={chat.sessionId}
-          semanticLayer={chat.semanticLayer}
-          onUpdateSemanticLayer={chat.setSemanticLayer}
           schema={chat.schema}
           dataQuality={chat.dataQuality}
           sensitiveColumns={chat.sensitiveColumns}
@@ -106,10 +96,7 @@ export default function App() {
             tables={chat.tables}
             sessionId={chat.sessionId}
             onExportPDF={chat.exportPDF}
-            onOpenModelLab={() => setModelLabOpen(true)}
             onOpenGlobe={() => setGlobeOpen(true)}
-            onOpenCompliance={() => setComplianceOpen(true)}
-            complianceStatus={complianceStatus}
           />
 
           {/* Messages viewport */}
@@ -118,7 +105,6 @@ export default function App() {
               {!hasMessages && (
                 <WelcomeScreen
                   onAction={handleSuggestionClick}
-                  onSampleLoad={chat.loadSampleDataset}
                   hasDataset={!!chat.fileInfo}
                 />
               )}
@@ -207,20 +193,23 @@ export default function App() {
           )}
 
           {/* Input area */}
-          <div className="input-area">
-            <div className="input-inner">
-              <ChatInput
-                onSend={handleSend}
-                onFileClick={() => setShowUpload(true)}
-                disabled={chat.isLoading}
-                placeholder={chat.fileInfo ? `Ask about ${chat.fileInfo.name}…` : 'Upload a dataset or ask a question…'}
-                mode={mode}
-                onModeChange={setMode}
-                webSearch={webSearch}
-                onWebSearchChange={setWebSearch}
-              />
+          {chat.fileInfo && (
+            <div className="input-area">
+              <div className="input-inner">
+                <ChatInput
+                  onSend={handleSend}
+                  onFileClick={() => setShowUpload(true)}
+                  disabled={chat.isLoading}
+                  inputDisabled={!chat.fileInfo}
+                  placeholder={`Ask about ${chat.fileInfo.name}…`}
+                  mode={mode}
+                  onModeChange={setMode}
+                  webSearch={webSearch}
+                  onWebSearchChange={setWebSearch}
+                />
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Status bar */}
           <StatusBar
@@ -231,12 +220,6 @@ export default function App() {
       </div>
 
 
-      {/* Compliance Panel */}
-      <CompliancePanel
-        isActive={complianceOpen}
-        onClose={() => setComplianceOpen(false)}
-        onAskQuestion={(text) => { chat.sendMessage(text, 'auto', false); setComplianceOpen(false); }}
-      />
 
       {/* Financial Globe overlay */}
       <FinancialGlobe
@@ -244,14 +227,7 @@ export default function App() {
         onClose={() => setGlobeOpen(false)}
       />
 
-      {/* Model Lab overlay */}
-      <ModelLab
-        isOpen={modelLabOpen}
-        onClose={() => setModelLabOpen(false)}
-        sessionId={chat.sessionId}
-        schema={chat.schema}
-        onDiscussInChat={(text) => { chat.sendMessage(text, 'auto', false); }}
-      />
+
     </>
   );
 }

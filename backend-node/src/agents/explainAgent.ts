@@ -1,5 +1,5 @@
 /**
- * Explain Agent — mirrors Python backend/app/agents/explain_agent.py.
+ * Explain Agent
  */
 import { gemini } from '../utils/geminiClient';
 import { WebResult } from '../types';

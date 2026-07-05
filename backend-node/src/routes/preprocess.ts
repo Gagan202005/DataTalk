@@ -1,7 +1,6 @@
 /**
  * POST /api/preprocess/apply — Apply approved fixes and load into DuckDB.
  * GET  /api/preprocess/download/:id — Download cleaned CSV.
- * Mirrors Python backend/app/routes/preprocess.py.
  */
 import { Router, Request, Response } from 'express';
 import path from 'path';
@@ -12,7 +11,6 @@ import { sessions } from '../sessions';
 import { applyDecisions } from '../core/preprocessor';
 import { DatabaseManager } from '../core/database';
 import { extractSchema, assessDataQuality, suggestMetrics, detectAnomalies } from '../core/schema';
-import { SemanticLayerManager } from '../core/semanticLayer';
 import { rowsToCsvBytes } from '../core/fileHandler';
 
 const SQL_RESERVED = new Set(['order','group','table','select','where','from','join','index','data','values','key','column','columns','row','rows','update','insert','delete','create','drop','alter','view','set','by','in','is','as','on','and','or','not','null','true','false']);
@@ -65,11 +63,6 @@ router.post('/preprocess/apply', async (req: Request, res: Response): Promise<vo
       await db.loadFromCsv(tmpCsv, tableName);
       fs.unlinkSync(tmpCsv);
 
-      const semantic = session.semanticLayer!;
-      const existingMetricNames = new Set(semantic.getMetrics().map((m) => m.name));
-      for (const s of suggestions) {
-        if (!existingMetricNames.has(s.name)) semantic.addMetric(s.name, s.expression, s.description);
-      }
 
       session.tables![tableName] = { rows: cleanedRows, schema, data_quality: quality, anomalies, filename };
       delete session.dfPreprocessed;
@@ -79,12 +72,9 @@ router.post('/preprocess/apply', async (req: Request, res: Response): Promise<vo
       await db.loadFromCsv(tmpCsv, tableName);
       fs.unlinkSync(tmpCsv);
 
-      const semantic = new SemanticLayerManager();
-      for (const s of suggestions) semantic.addMetric(s.name, s.expression, s.description);
-
       sessions.set(session_id, {
         db, tables: { [tableName]: { rows: cleanedRows, schema, data_quality: quality, anomalies, filename } },
-        semanticLayer: semantic, messages: [], cache: {},
+        messages: [], cache: {},
       });
     }
 

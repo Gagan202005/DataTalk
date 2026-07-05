@@ -1,6 +1,5 @@
 /**
  * Schema extraction from parsed row arrays.
- * Mirrors Python backend/app/core/schema.py.
  */
 import { ParsedRow, ColumnSchema, DataQuality, Anomaly, MetricDefinition } from '../types';
 

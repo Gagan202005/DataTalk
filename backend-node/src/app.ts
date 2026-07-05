@@ -8,10 +8,7 @@ import uploadRouter from './routes/upload';
 import preprocessRouter from './routes/preprocess';
 import chatRouter from './routes/chat';
 import exportRouter from './routes/export';
-import semanticRouter from './routes/semantic';
-import complianceRouter from './routes/compliance';
-import sampleDatasetsRouter from './routes/sampleDatasets';
-import modelsRouter from './routes/models';
+
 import newsRouter from './routes/news';
 import debugRouter from './routes/debug';
 
@@ -29,10 +26,7 @@ app.use('/api', uploadRouter);
 app.use('/api', preprocessRouter);
 app.use('/api', chatRouter);
 app.use('/api', exportRouter);
-app.use('/api', semanticRouter);
-app.use('/api', complianceRouter);
-app.use('/api', sampleDatasetsRouter);
-app.use('/api', modelsRouter);
+
 app.use('/api', newsRouter);
 app.use('/api', debugRouter);
 

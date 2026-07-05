@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { Database, FileSpreadsheet, Copy, Check, AlertCircle, ChevronRight, ChevronDown, ChevronUp, BarChart2 } from 'lucide-react';
-import DataSummary from './DataSummary';
 import ChartRenderer from './ChartRenderer';
-import ComplianceBadge from './ComplianceBadge';
+
 import WebContextCard from './WebContextCard';
 
 export default function ChatMessage({ message, onSendMessage }) {
@@ -88,7 +87,7 @@ export default function ChatMessage({ message, onSendMessage }) {
     code_agent: { label: 'Analysis', cls: 'code' },
     search_agent: { label: 'Web Search', cls: 'search' },
     general: { label: 'DataTalk', cls: 'general' },
-    compliance_agent: { label: 'Compliance', cls: 'compliance' },
+
   };
   const agentInfo = AGENT_MAP[message.agent_used] || { label: 'DataTalk', cls: 'general' };
   const hasChart = message.chart || message.matplotlib_image;
@@ -163,14 +162,7 @@ export default function ChatMessage({ message, onSendMessage }) {
             </div>
           )}
 
-          {/* Compliance */}
-          {message.compliance && (
-            <div className="card-section">
-              <div className="card-section-body">
-                <ComplianceBadge compliance={message.compliance} />
-              </div>
-            </div>
-          )}
+
 
 
           {/* Sources */}

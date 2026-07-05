@@ -1,6 +1,5 @@
 /**
  * PDF report generator using pdfkit.
- * Mirrors the structure of Python backend/app/utils/pdf_generator.py.
  */
 import PDFDocument from 'pdfkit';
 
@@ -79,7 +78,6 @@ function drawTable(
 export function generatePdfReport(opts: {
   messages: Record<string, any>[];
   tables: Record<string, any>;
-  semanticLayer?: any;
   template_info?: Record<string, any> | null;
   attachments?: Array<{ message_index?: number; data: string; content_type?: string }> | null;
 }): Promise<Buffer> {
@@ -184,7 +182,7 @@ export function generatePdfReport(opts: {
           for (const b64 of images) {
             try {
               const imgBuf = Buffer.from(b64.includes(',') ? b64.split(',')[1] : b64, 'base64');
-              const img = doc.openImage(imgBuf);
+              const img = (doc as any).openImage(imgBuf);
               const targetWidth = Math.min(400, contentWidth);
               const scaledHeight = img.height * (targetWidth / img.width);
               
@@ -213,7 +211,7 @@ export function generatePdfReport(opts: {
               if (att.message_index === idx && att.data) {
                 try {
                   const imgBuf = Buffer.from(att.data.includes(',') ? att.data.split(',')[1] : att.data, 'base64');
-                  const img = doc.openImage(imgBuf);
+                  const img = (doc as any).openImage(imgBuf);
                   const targetWidth = Math.min(400, contentWidth);
                   const scaledHeight = img.height * (targetWidth / img.width);
                   

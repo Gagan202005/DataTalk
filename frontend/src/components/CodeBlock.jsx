@@ -27,27 +27,6 @@ const languageColors = {
   js: '#10b981',
 };
 
-// Custom dark theme matching our NatWest-inspired palette
-const customTheme = {
-  ...oneDark,
-  'pre[class*="language-"]': {
-    ...oneDark['pre[class*="language-"]'],
-    background: '#0f0f1e',
-    margin: 0,
-    padding: '12px 14px',
-    fontSize: '12px',
-    lineHeight: '1.6',
-    fontFamily: '"JetBrains Mono", "Fira Code", "Cascadia Code", monospace',
-    borderRadius: 0,
-  },
-  'code[class*="language-"]': {
-    ...oneDark['code[class*="language-"]'],
-    background: 'none',
-    fontFamily: '"JetBrains Mono", "Fira Code", "Cascadia Code", monospace',
-    fontSize: '12px',
-  },
-};
-
 export default function CodeBlock({ code, language, title }) {
   const [collapsed, setCollapsed] = useState(true);
   const [copied, setCopied] = useState(false);

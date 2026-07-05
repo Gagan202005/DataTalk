@@ -7,7 +7,7 @@ const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecogni
 const isSpeechSupported = !!SpeechRecognition;
 
 export default function ChatInput({
-  onSend, onFileClick, disabled, placeholder,
+  onSend, onFileClick, disabled, inputDisabled, placeholder,
   mode = 'auto', onModeChange,
   webSearch = false, onWebSearchChange,
 }) {
@@ -19,7 +19,7 @@ export default function ChatInput({
   const submit = (e) => {
     e?.preventDefault();
     const trimmed = input.trim();
-    if (!trimmed || disabled) return;
+    if (!trimmed || disabled || inputDisabled) return;
     onSend(trimmed);
     setInput('');
     if (textareaRef.current) textareaRef.current.style.height = 'auto';
@@ -54,10 +54,9 @@ export default function ChatInput({
 
   return (
     <form onSubmit={submit}>
-      {/* Mode selector + web search toggle row */}
       <div className="input-controls-row">
-        <ModeSelector mode={mode} onChange={onModeChange} disabled={disabled} />
-        <WebSearchToggle enabled={webSearch} onChange={onWebSearchChange} disabled={disabled} />
+        <ModeSelector mode={mode} onChange={onModeChange} disabled={disabled || inputDisabled} />
+        <WebSearchToggle enabled={webSearch} onChange={onWebSearchChange} disabled={disabled || inputDisabled} />
       </div>
 
       <div className="input-box">
@@ -71,7 +70,7 @@ export default function ChatInput({
           onChange={handleChange}
           onKeyDown={handleKeyDown}
           placeholder={placeholder || 'Ask about your data…'}
-          disabled={disabled}
+          disabled={disabled || inputDisabled}
           rows={1}
           className="input-textarea"
         />
@@ -81,7 +80,7 @@ export default function ChatInput({
             type="button"
             className={`input-icon-btn${listening ? ' active' : ''}`}
             onClick={toggleVoice}
-            disabled={disabled}
+            disabled={disabled || inputDisabled}
             title={listening ? 'Stop listening' : 'Voice input'}
           >
             {listening ? <MicOff size={15} /> : <Mic size={15} />}
@@ -91,7 +90,7 @@ export default function ChatInput({
         <button
           type="submit"
           className="input-send-btn"
-          disabled={!input.trim() || disabled}
+          disabled={!input.trim() || disabled || inputDisabled}
           title="Send"
         >
           <Send size={14} />

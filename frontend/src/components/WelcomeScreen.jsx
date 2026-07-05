@@ -17,7 +17,7 @@ export default function WelcomeScreen({ onAction, hasDataset }) {
 
       <p className="welcome-sub">
         {hasDataset
-          ? 'Ask questions in plain English — SQL queries, charts, compliance checks, and ML predictions.'
+          ? 'Ask questions in plain English — SQL queries, charts, and statistical analysis.'
           : 'Upload your own dataset. Ask questions in plain English.'}
       </p>
 

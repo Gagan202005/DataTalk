@@ -1,13 +1,13 @@
 /**
- * Orchestrator Agent — mirrors Python backend/app/agents/orchestrator.py exactly.
+ * Orchestrator Agent
  */
 import { gemini } from '../utils/geminiClient';
 import { runSqlAgent } from './sqlAgent';
 import { runCodeAgent } from './codeAgent';
 import { runSearchAgent, buildSearchQuery } from './searchAgent';
 import { runExplainAgent } from './explainAgent';
-import { preScreen, postValidate, answerComplianceQuestion } from './complianceAgent';
-import { calculateConfidence } from '../core/confidence';
+import { checkPiiQuery } from '../core/complianceRules';
+
 import { Session, ColumnSchema, ChatResponse, ParsedRow, WebResult } from '../types';
 
 const CLASSIFY_SYSTEM_PROMPT = `You are a routing agent for a data analysis platform. Classify the user question into exactly one category.
@@ -27,7 +27,6 @@ IMPORTANT routing rules:
 - "total", "count", "average", "sum", "group by", "top N" → "sql_query"
 
 Schema: {schema}
-Semantic Layer: {semantic_layer}
 
 Respond with ONLY a JSON object:
 {"category": "...", "needs_web_context": true/false, "search_query": "..." or null, "reasoning": "one sentence"}`;
@@ -51,14 +50,11 @@ function getTotalRows(session: Session): number {
 async function classifyQuestion(
   question: string,
   schema: ColumnSchema[],
-  semanticLayer: any,
   conversationHistory: string | null,
 ): Promise<Record<string, any>> {
   const schemaSummary = JSON.stringify(schema.map((s) => ({ name: s.name, type: s.type, table: (s as any).table ?? '' })), null, 2);
-  const semanticStr = semanticLayer?.toJson() ?? 'None';
   const systemPrompt = CLASSIFY_SYSTEM_PROMPT
-    .replace('{schema}', schemaSummary)
-    .replace('{semantic_layer}', semanticStr);
+    .replace('{schema}', schemaSummary);
   const parts: string[] = [];
   if (conversationHistory) parts.push(`Conversation so far:\n${conversationHistory}\n`);
   parts.push(`User question: ${question}`);
@@ -154,7 +150,6 @@ export async function processQuestion(
   options: Record<string, any> = {},
 ): Promise<ChatResponse> {
   const schema = getCombinedSchema(session);
-  const semanticLayer = session.semanticLayer;
   const includeChart = options.include_chart !== false;
   const includeWeb = options.include_web_search !== false;
   const webSearchToggle = options.web_search === true;
@@ -173,12 +168,17 @@ export async function processQuestion(
     if (lines.length) conversationHistory = lines.join('\n');
   }
 
-  // Step 0: Compliance pre-screen
-  const block = preScreen(question);
-  if (block) return block as ChatResponse;
-
-  // Compliance mode
-  if (mode === 'compliance') return answerComplianceQuestion(question, schema);
+  // Step 0: PII pre-screen
+  const block = checkPiiQuery(question);
+  if (block) {
+    return {
+      answer: `🔴 **${block.message}**`,
+      agent_used: 'compliance_agent',
+      sql_query: null, python_code: null, chart: null, matplotlib_image: null,
+      data: [],
+      sources: [], suggestions: [], web_context: [], from_cache: false,
+    };
+  }
 
   // Step 1: Classify or override
   let category: string;
@@ -186,7 +186,7 @@ export async function processQuestion(
   let searchQueryHint: string | null = null;
 
   if (mode === 'auto') {
-    const cls = await classifyQuestion(question, schema, semanticLayer, conversationHistory);
+    const cls = await classifyQuestion(question, schema, conversationHistory);
     category = cls.category ?? 'sql_query';
     needsWeb = (cls.needs_web_context === true) && includeWeb;
     searchQueryHint = cls.search_query ?? null;
@@ -256,12 +256,6 @@ export async function processQuestion(
   if (category === 'general' && result.answer) answer = result.answer as string;
 
   const suggestions = result.error ? [] : await suggestFollowups(question, answer, schema);
-  const complianceResult = postValidate(question, result.data ?? [], schema);
-  const confidence = calculateConfidence({
-    rows_used: result.row_count ?? 0, total_rows: result.total_rows ?? 0,
-    columns_used: result.columns_used ?? [], schema, question,
-    web_results: webResults, sql_error: result.error, compliance_status: complianceResult.status,
-  });
 
   const sources: ChatResponse['sources'] = [];
   if (result.columns_used?.length) {
@@ -276,7 +270,7 @@ export async function processQuestion(
     sql_query: result.sql_query ?? null, python_code: result.python_code ?? null,
     chart: result.chart ?? null, matplotlib_image: result.matplotlib_image ?? null,
     matplotlib_images: result.matplotlib_images ?? [],
-    data: result.data ?? [], confidence, sources, suggestions,
-    web_context: webResults, compliance: complianceResult, from_cache: false,
+    data: result.data ?? [], sources, suggestions,
+    web_context: webResults, from_cache: false,
   };
 }

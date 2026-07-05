@@ -1,6 +1,5 @@
 /**
  * File upload handler. Parses CSV, Excel, JSON, and TSV into row arrays.
- * Mirrors Python backend/app/core/file_handler.py.
  */
 import path from 'path';
 import Papa from 'papaparse';

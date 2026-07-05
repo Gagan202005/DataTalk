@@ -1,5 +1,5 @@
 /**
- * POST /api/export-pdf — Generate PDF report. Mirrors Python backend/app/routes/export.py.
+ * POST /api/export-pdf — Generate PDF report
  */
 import { Router, Request, Response } from 'express';
 import { sessions } from '../sessions';
@@ -19,7 +19,7 @@ router.post('/export-pdf', async (req: Request, res: Response): Promise<void> =>
     const session = sessions.get(session_id)!;
     const tables = session.tables ?? {};
 
-    const pdfBytes = await generatePdfReport({ messages, tables, semanticLayer: session.semanticLayer, template_info, attachments });
+    const pdfBytes = await generatePdfReport({ messages, tables, template_info, attachments });
 
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', 'attachment; filename=DataTalk_Report.pdf');

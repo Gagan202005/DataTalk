@@ -38,7 +38,7 @@ export interface Session {
   pendingFilename?: string;
   db?: import('../core/database').DatabaseManager;
   tables?: Record<string, TableMeta>;
-  semanticLayer?: import('../core/semanticLayer').SemanticLayerManager;
+
   messages?: ChatMessage[];
   cache?: Record<string, any>;
 }
@@ -74,28 +74,6 @@ export interface ChatMessage {
   [key: string]: any;
 }
 
-export interface Confidence {
-  score: number;
-  level: 'High' | 'Medium' | 'Low';
-  breakdown: {
-    row_coverage: number;
-    data_completeness: number;
-    schema_match: number;
-    web_corroboration: number;
-    compliance_check: number;
-  };
-}
-
-export interface ComplianceResult {
-  status: 'compliant' | 'warning' | 'blocked';
-  annotations: Array<{
-    rule: string;
-    status: string;
-    message: string;
-    [key: string]: any;
-  }>;
-}
-
 export interface ChatResponse {
   answer: string;
   agent_used: string;
@@ -108,11 +86,10 @@ export interface ChatResponse {
   columns_used?: string[];
   row_count?: number;
   total_rows?: number;
-  confidence: Confidence;
+
   sources: Source[];
   suggestions: string[];
   web_context: WebResult[];
-  compliance: ComplianceResult;
   from_cache: boolean;
   timestamp?: string;
 }

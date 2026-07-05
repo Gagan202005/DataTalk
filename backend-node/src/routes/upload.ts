@@ -1,6 +1,5 @@
 /**
  * POST /api/upload — File upload endpoint.
- * Mirrors Python backend/app/routes/upload.py.
  */
 import { Router, Request, Response } from 'express';
 import multer from 'multer';

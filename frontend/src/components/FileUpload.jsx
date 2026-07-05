@@ -1,7 +1,7 @@
 import React, { useCallback, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { Upload, FileSpreadsheet, X, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
-import { parseFile, formatFileSize } from '../utils/csvParser';
+import { formatFileSize } from '../utils/csvParser';
 
 export default function FileUpload({ onFileLoaded, disabled }) {
   const [parsing,    setParsing]   = useState(false);

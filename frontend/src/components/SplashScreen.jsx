@@ -7,22 +7,22 @@ const HIGHLIGHT_CARDS = [
     accent: '#00D4A1',
     label: 'Security First',
     headline: 'Zero-trust by default',
-    body: 'End-to-end data masking, sensitive column detection, audit trails, and real-time compliance guardrails on every query.',
+    body: 'End-to-end data masking, sensitive column detection, and audit trails on every query.',
     glow: true,
   },
   {
     icon: FlaskConical,
     accent: '#7B3FE4',
-    label: 'Python ML Engine',
+    label: 'Python Analytics',
     headline: 'Full analytics power',
-    body: 'Sandboxed Python environment with pandas, scikit-learn & matplotlib. Run regressions, clustering, forecasts — no code needed.',
+    body: 'Sandboxed Python environment with pandas and matplotlib. Run statistical analysis and generate charts — no code needed.',
   },
   {
-    icon: CheckCircle2,
+    icon: Globe,
     accent: '#3b82f6',
-    label: 'Compliance Ready',
-    headline: 'Regulatory out of the box',
-    body: 'PMLA / AML, KYC / CDD, DPDP Act 2023, IRAC Norms — every response is validated against live compliance rules.',
+    label: 'Web Search Grounding',
+    headline: 'Real-time context',
+    body: 'Augment your internal data with real-time web search. Discover current news and trends related to your dataset automatically.',
   },
 ];
 
@@ -330,7 +330,7 @@ export default function SplashScreen({ onComplete }) {
 
           {/* Tagline */}
           <p className="lp-tagline a" style={{ animationDelay: '0.16s' }}>
-            Run complex analytics, ML models &amp; compliance checks —{' '}
+            Run complex analytics, automated data cleaning & web searches —{' '}
             <strong>without writing a single line of code.</strong><br />
             Powered by a full Python environment, live web search, and AI.
           </p>
