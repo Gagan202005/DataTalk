@@ -16,7 +16,13 @@ export const logger = pino({ level: process.env.LOG_LEVEL ?? 'info' });
 
 const app = express();
 
-app.use(cors({ origin: '*', credentials: false }));
+app.use(cors({
+  origin: '*',
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin', 'X-Requested-With'],
+  credentials: false
+}));
+app.options('*', cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use(pinoHttp({ logger }));
